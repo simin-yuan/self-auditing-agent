@@ -1,75 +1,84 @@
 # gatecheck
 
-**你的门禁真的会拦吗？**
+**Does your quality gate actually reject anything?**
 
-一个校验器、一条 CI 检查、一个 linter —— 最常见的失效不是"它有 bug"，
-而是**它从来没拦过任何东西，却让所有人以为有它在兜底**。
+The most common failure of a validator, a CI check, or a linter is not that it has a bug.
+It is that **it has never rejected anything — while everyone assumes it is protecting them.**
 
-你以为 CI 是绿的，是因为代码干净；也可能是那条检查根本没生效。
+Your CI is green. That may mean your code is clean. It may also mean the check never ran.
 
-## 它做什么
+`gatecheck` answers the question nobody asks until it is too late: **if I feed this checker something it is supposed to reject, does it reject it?**
 
-给它两样东西：
+## What it does
 
-- 一个**门禁命令**（任何返回非零码表示"拒绝"的东西）
-- 一份**基线输入**（必须是能通过该门禁的）
+Give it two things:
 
-它对基线输入做 N 种变异，**每个变异单独跑一次你的门禁**，
-如实报告哪些变异被拦住了、哪些漏了。
+- a **gate command** — anything that exits non-zero to mean "reject"
+- a **baseline input** — something that currently passes that gate
+
+It mutates the baseline N ways, **re-runs your gate once per mutant**, and reports which mutations the gate caught and which it let through.
 
 ```bash
-gatecheck \
-  --gate "python validate.py {target}" \
-  --target ./my-data
+gatecheck --gate "python validate.py {target}" --target ./my-data
 ```
 
-输出：
-
 ```
-基线判定 : 退出码 0  ✅ 通过
-变异总数 : 175
-      拦住 ✔  drop-file:schema.md
-      ★ 漏过  drop-line:rules.md:12
+baseline  : exit 0   ✅ passes
+mutants   : 175
+      caught  drop-file:schema.md
+      ★ MISSED  drop-line:rules.md:12
+      ★ MISSED  break-ref:domains.yaml:OBJ-1->OBJ-Z
 ...
-拦住 97 / 175
-结论：门禁对 78/175 个变异无反应 —— 它有可见盲区。
+caught 97 / 175
+verdict: your gate did not react to 78/175 mutations — it has blind spots.
 ```
 
-## 它不做什么
+## What it does NOT do
 
-**它不给你判决，它给你清单。**
-未被拦住的变异**不等于**缺陷 —— 有些变异在语义上是合法的。
-gatecheck 把你从「我以为我的门禁很严」变成「我知道它在这 78 种改法下没反应」。
+**It does not give you a verdict. It gives you a list.**
 
-漏过的那 78 条要不要算 bug，**得你逐条看**。这是它刻意不替你做的事。
+A missed mutant is **not** automatically a defect — some mutations are semantically harmless.
+`gatecheck` moves you from *"I assume my gate is strict"* to *"I know it does not react to these 78 edits, and now I have reviewed them."*
 
-## 变异算子
+Whether a miss is a bug is a judgement call, and that judgement is deliberately left to you.
 
-| 算子 | 做什么 |
+## Mutation operators
+
+| Operator | What it does |
 |---|---|
-| `drop-file` | 删掉整个文件 |
-| `empty-file` | 清空文件 |
-| `drop-section` | 删掉一个 markdown 段 / 配置块 |
-| `drop-line` | 逐行删除 |
-| `blank-value` | 把 `key: value` 的值清空 |
-| `break-reference` | 改掉标识符一个字符，制造悬空引用 |
-| `dup-id` | 复制一个 id，制造重复定义 |
+| `drop-file` | delete a whole file |
+| `empty-file` | blank a file |
+| `drop-section` | delete a markdown section / config block |
+| `drop-line` | delete lines one at a time |
+| `blank-value` | keep `key: value` but empty the value |
+| `break-reference` | change one character of an identifier, creating a dangling reference |
+| `dup-id` | duplicate an id, creating a duplicate definition |
 
-## 退出码
+## Exit codes
 
-- `0` —— 所有变异都被拦住（本轮无可见盲区）
-- `1` —— 存在未被拦住的变异，全部写进 `--report`
+- `0` — every mutant was caught (no visible blind spot this round)
+- `1` — some mutants were not caught; all of them are written to `--report`
 
-## 零依赖
+## Zero dependencies
 
-只用 Python 标准库。**一个要求别人先装一堆东西的质量工具，不会被用在关键路径上。**
+Standard library only. **A quality tool that makes you install a pile of things first does not end up on anyone's critical path.**
 
-## 它自己的来历
+## Where it came from
 
-这个工具不是设计出来的，是我拿它去查**自己**的门禁时逼出来的。
-结果：175 个变异漏过 78 个，其中 **4 类是真缺陷**，最严重的一条是
-"规则的触发条件由被检方自己提供，所以删掉声明就能绕过要求"。
+This tool was not designed. It was forced out of me by pointing it at **my own** gate: 175 mutants, 78 slipped through, **4 of them real defects**.
 
-完整诊断：`docs/BLIND-SPOTS.md`。
+The worst one: a rule whose trigger condition was supplied by the party being inspected — *"if you declare yourself non-interactive, you must be registered."* The cheapest way to bypass it was not to skip the registration. It was to **delete the four words `non-interactive`**. With the antecedent gone, the requirement never fires, and the gate says nothing.
+
+> **A check that only applies once you admit guilt is not a check.**
+
+Full diagnosis, including the defects I have *not* fixed yet: [`docs/BLIND-SPOTS.md`](../docs/BLIND-SPOTS.md).
+
+---
+
+## 中文
+
+**你的门禁真的会拦吗？** 给它一个门禁命令和一份合法输入，它自动变异输入、逐个撞门禁，报告漏在哪。**它不给你判决，它给你清单。** 零依赖（只用 Python 标准库），退出码 0/1，可直接进 CI。
+
+来历：我拿它去撞**我自己**的门禁，175 个变异漏过 78 个，其中 4 类是真缺陷。最狠的一条是「规则的触发条件由被检方自己提供，所以删掉四个字就能绕过全部检查」。
 
 MIT
