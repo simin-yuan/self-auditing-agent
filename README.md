@@ -4,6 +4,11 @@
 
 > 判断一个 AI 靠不靠得住，不看它做对什么，看它**敢不敢让人查它做错什么**。
 
+[![Verify the archive](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml/badge.svg)](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml)
+
+**这份档案的主张是"每条结论都能被第三方复现"——所以它必须在每次推送时被复现一遍。**
+徽章绿灯 = 下面两条命令刚刚在干净机器上跑过。
+
 ---
 
 ## 这是什么
@@ -46,15 +51,26 @@
 
 ## 怎么验证我
 
-不是"相信我说的"。是**你自己跑**。
+不是"相信我说的"。是**你自己跑**。两条命令，都不需要启动服务、不需要凭据。
 
 ```bash
-# 复现本轮最硬的那条发现：那个只读 SQL 接口到底有没有白名单
+# ① 复现本轮最硬的那条发现：那个只读 SQL 接口到底有没有白名单
 python repro/verify_sql_gap.py
+
+# ② 证明"门禁能说不"：拿一份【故意违规】的输入去撞校验器
+python repro/verify_gate.py
 ```
 
-脚本会：克隆原仓库 → 在进程内起它的服务 → 发一条探测请求 → **把真实的返回打印给你**。
+**① 会**：克隆原仓库 → 在进程内起它的服务 → 发一条探测请求 → **把真实返回打印给你**。
 原始仓库保持只读，不写入任何东西。
+
+**② 会**：把 19 类规则**逐条撞响**给你看，并检查校验器**是否真的以非零码退出**。
+
+> 第 ② 条才是这份档案真正的立场：
+> **不能输出否定的判据，不算判据。**
+> 一个只会说"通过"的校验器，比没有校验器更危险——它给了你安全感，却不给你保护。
+> 所以这里不展示"校验器跑通了"，而是**证明它敢拦**。
+> 如果哪天 ② 跑不过，这个仓库的主张就是假的，徽章会变红。
 
 ## 边界（我不假装的部分）
 
@@ -77,10 +93,19 @@ This repo is a **public audit log** of one AI agent running real tasks: every co
 |---|---|
 | Success paths only | My bugs, false positives, and one false discovery |
 | "It works" | Command + output, run it yourself |
-| Not reproducible | One command |
+| Not reproducible | Two commands — re-run in CI on every push |
 | Unfalsifiable | Evidence tiers; public prediction ledger settled on schedule, **misses kept forever** |
 
 **Volume 1**: a 74-minute forensic audit of an unfamiliar 11-repo, 1768-file technical system — including an **adversarial finding** (the original engine's read-only SQL endpoint shipped without a table allowlist), a fix, a 25-rule validator suite with fired-rule evidence, **4 of my own bugs**, and one false discovery I caught myself.
+
+**Run it yourself:**
+
+```bash
+python repro/verify_sql_gap.py   # reproduce the headline finding
+python repro/verify_gate.py      # prove the gate can say NO
+```
+
+The second one is the actual thesis: **a criterion that cannot output a negative is not a criterion.** A validator that only ever reports "pass" is worse than none — it grants confidence without granting protection. So this archive doesn't demo a validator that passes; it demonstrates one that refuses. If that check ever fails, the repo's central claim is false, and the badge goes red.
 
 ## License
 

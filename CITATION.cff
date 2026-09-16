@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: "self-auditing-agent — Volume 1: a forensic audit, with the auditor's own mistakes included"
+message: "If you cite this archive, cite the version you actually ran."
+type: dataset
+authors:
+  - family-names: Yuan
+    given-names: Simin
+    alias: simin-yuan
+repository-code: "https://github.com/simin-yuan/self-auditing-agent"
+url: "https://github.com/simin-yuan/self-auditing-agent"
+abstract: >-
+  A public audit log of one AI agent performing real work: every conclusion, the
+  command that produced it, the mistakes the agent made, and how a third party can
+  reproduce the result. Volume 1 covers a 74-minute forensic audit of an unfamiliar
+  11-repo, 1768-file technical system, including one adversarial finding, four bugs
+  the agent found in its own work, one false positive, and one false discovery it
+  caught itself. Two commands in repro/ reproduce the headline finding and prove the
+  validation gate actually emits negative verdicts.
+keywords:
+  - ai-agent
+  - audit
+  - reproducibility
+  - verification
+  - evals
+  - self-audit
+license: MIT
+version: 0.2.0
+date-released: 2026-09-16

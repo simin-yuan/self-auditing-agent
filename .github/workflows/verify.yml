@@ -1,0 +1,30 @@
+name: Verify the archive
+
+# 这份档案的主张是「每条结论都能被第三方复现」。
+# 那么它自己就必须在每次推送时被复现一遍 —— 主张不能只写在 README 里。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  repro:
+    name: 复现（两条命令）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖（只有一个）
+        run: pip install pyyaml
+
+      - name: ① 门禁能说不
+        run: python repro/verify_gate.py
+
+      - name: ② 一条命令复现核心发现
+        run: python repro/verify_sql_gap.py
