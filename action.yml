@@ -1,0 +1,112 @@
+name: 'gatecheck'
+description: 'Does your quality gate actually reject anything? Mutates a known-good baseline and reports which mutations your gate fails to reject.'
+author: 'simin-yuan'
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  gate:
+    description: >
+      Command that runs your gate. Non-zero exit = reject. Use the literal {target}
+      where the input path should go, e.g. 'python my_validator.py {target}'.
+    required: true
+  target:
+    description: 'Path to a known-good baseline input (a directory or file your gate currently accepts).'
+    required: true
+  report:
+    description: 'Path to write the JSON report (every mutation + whether the gate rejected it).'
+    required: false
+    default: 'gatecheck-report.json'
+  limit:
+    description: 'Cap the number of mutations (useful for large inputs / fast CI).'
+    required: false
+    default: ''
+  min-rejected-pct:
+    description: >
+      Fail the step if fewer than this percent of mutations were rejected. Leave empty to
+      never fail on blind spots (report-only). That is the honest default: an unrejected
+      mutation is not automatically a defect, so gatecheck reports and you judge.
+    required: false
+    default: ''
+
+outputs:
+  rejected:
+    description: 'Mutations the gate rejected.'
+    value: ${{ steps.run.outputs.rejected }}
+  missed:
+    description: 'Mutations the gate did NOT reject (its visible blind spots).'
+    value: ${{ steps.run.outputs.missed }}
+  total:
+    description: 'Mutations generated.'
+    value: ${{ steps.run.outputs.total }}
+  baseline-ok:
+    description: 'Whether the known-good baseline actually passed the gate.'
+    value: ${{ steps.run.outputs.baseline_ok }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: run
+      shell: bash
+      env:
+        GC_GATE: ${{ inputs.gate }}
+        GC_TARGET: ${{ inputs.target }}
+        GC_REPORT: ${{ inputs.report }}
+        GC_LIMIT: ${{ inputs.limit }}
+        GC_MIN: ${{ inputs.min-rejected-pct }}
+        GC_ACTION: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        extra=""
+        if [ -n "${GC_LIMIT}" ]; then extra="--limit ${GC_LIMIT}"; fi
+        # gatecheck exits 1 whenever any mutation slips through. That is information,
+        # not a failure, so we capture it and decide below.
+        python "${GC_ACTION}/gatecheck/gatecheck.py" \
+          --gate "${GC_GATE}" \
+          --target "${GC_TARGET}" \
+          --report "${GC_REPORT}" \
+          --workdir "${GITHUB_WORKSPACE}" \
+          ${extra} || true
+
+        python - "${GC_REPORT}" <<'PY'
+        import json, os, sys
+
+        p = sys.argv[1]
+        if not os.path.exists(p):
+            print(f"::error::gatecheck produced no report at {p}")
+            raise SystemExit(1)
+        r = json.load(open(p, encoding="utf-8"))
+
+        caught, missed = r.get("caught", []), r.get("missed", [])
+        total = r.get("mutants_total", len(caught) + len(missed))
+        baseline_ok = bool(r.get("baseline_ok"))
+
+        print(f"gatecheck: {len(caught)}/{total} mutations rejected, {len(missed)} slipped through")
+        if r.get("build_errors"):
+            print(f"::warning::{len(r['build_errors'])} mutants could not be built")
+
+        gh = os.environ.get("GITHUB_OUTPUT")
+        if gh:
+            with open(gh, "a", encoding="utf-8") as f:
+                f.write(f"rejected={len(caught)}\nmissed={len(missed)}\n"
+                        f"total={total}\nbaseline_ok={str(baseline_ok).lower()}\n")
+
+        # A gate that rejects the known-good baseline too measures nothing.
+        if not baseline_ok:
+            print("::error::the baseline input did not pass the gate — this run proves nothing. "
+                  "Fix the baseline first.")
+            raise SystemExit(1)
+
+        mn = os.environ.get("GC_MIN", "").strip()
+        if mn:
+            pct = 100.0 * len(caught) / max(total, 1)
+            if pct < float(mn):
+                print(f"::error::only {pct:.1f}% of mutations rejected, below min-rejected-pct={mn}")
+                raise SystemExit(1)
+
+        if missed:
+            head = ", ".join(missed[:5])
+            print(f"::warning::{len(missed)} mutations slipped through (e.g. {head}) — "
+                  f"full list in {os.environ.get('GC_REPORT')}")
+        PY

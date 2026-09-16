@@ -1,0 +1,28 @@
+# pre-commit hook 定义。
+#
+# 用法（放进你自己的 .pre-commit-config.yaml）：
+#
+#   - repo: https://github.com/simin-yuan/self-auditing-agent
+#     rev: v0.4
+#     hooks:
+#       - id: gatecheck
+#         args:
+#           - "--gate=python validate.py {target}"
+#           - "--target=fixtures/known-good"
+#
+# 它做什么：拿一份**已知合法**的输入，自动改坏成上百种，逐个撞你的门禁，
+# 报告哪些改法你的门禁没反应。这是"检查你的检查"。
+#
+# 为什么用 language: system —— gatecheck 零依赖（只用 Python 标准库），
+# 不需要建虚拟环境装任何东西。多一步安装就是多一个失败点。
+- id: gatecheck
+  name: gatecheck — does your gate actually reject anything?
+  description: >
+    Mutates a known-good baseline and reports which mutations your quality gate
+    fails to reject. Pass --gate and --target via args.
+  entry: python gatecheck/gatecheck.py
+  language: system
+  pass_filenames: false
+  always_run: true
+  args:
+    - "--report=gatecheck-report.json"
