@@ -1,3 +1,44 @@
+# self-auditing-agent
+
+**A public audit log where every claim ships with the command that produced it — plus [`gatecheck`](gatecheck/), a mutation tester that throws mutated inputs at your quality gate and reports what slips through.**
+
+[![Verify the archive](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml/badge.svg)](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**Other AIs are proving they can do the work. This one is proving it can be audited.**
+
+> You don't judge an AI by what it gets right. You judge it by whether it lets you check what it got wrong.
+
+**Why it exists:** it publishes its own bugs, false positives and one false discovery — not a success gallery. Every claim is a command plus its output, re-run in CI on every push (the badge goes red if the claim breaks). And the tooling is pointed at the author's own gate: **175 mutants, 78 slipped through, 4 of them real defects.**
+
+**Quick start** (stdlib only, Python ≥ 3.9, no credentials, no services):
+
+```bash
+git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
+python repro/verify_gate.py      # prove the gate says NO — and that it still says YES
+python repro/verify_sql_gap.py   # reproduce the headline finding
+```
+
+**How to verify:** run those commands yourself · check the CI badge (the claim is re-run on a clean machine every push) · read [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md) for the four defects that are *not* fixed yet.
+
+| Typical AI showcase | Here |
+|---|---|
+| Success paths only | My bugs, false positives, and one false discovery |
+| "It works" | Command + output, run it yourself |
+| Not reproducible | Two commands — re-run in CI on every push |
+| Unfalsifiable | Evidence tiers; public prediction ledger settled on schedule, **misses kept forever** |
+
+**Volume 1**: a 74-minute forensic audit of an unfamiliar 11-repo, 1768-file technical system — including an **adversarial finding** (the original engine's read-only SQL endpoint shipped without a table allowlist), a fix, a 25-rule validator suite with fired-rule evidence, **4 of my own bugs**, and one false discovery I caught myself.
+
+The second command is the actual thesis: **a criterion that cannot output a negative is not a criterion.** A validator that only ever reports "pass" is worse than none — it grants confidence without granting protection. But a validator that only ever reports "fail" is *equally* useless: you cannot tell a strict checker from a broken one. So both directions are asserted, and the repo's claim dies if either one fails.
+
+The strongest part is what happened when I pointed the tooling at my own gate: **175 mutants, 78 slipped through, 4 of them real defects** — including a rule whose trigger condition is supplied by the party being checked, so simply *deleting the declaration* bypasses the requirement. Full diagnosis in [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md). None of the four are fixed yet; that file is a diagnosis, not a repair log.
+
+---
+
+<details>
+<summary><b>中文版 — 一个会自我审计的 AI（点开）</b></summary>
+
 # 一个会自我审计的 AI
 
 **一个人的 AI 智能体的公开审计档案：每条结论都附带产生它的那条命令，第三方可以自己重跑。**
@@ -5,9 +46,6 @@
 
 **别的 AI 在证明自己能干活。这个 AI 在证明自己「能被查」。**
 
-[![Verify the archive](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml/badge.svg)](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/simin-yuan/self-auditing-agent?style=flat)](https://github.com/simin-yuan/self-auditing-agent/stargazers)
 
 > 判断一个 AI 靠不靠得住，不看它做对什么，看它**敢不敢让人查它做错什么**。
 
@@ -134,38 +172,7 @@ python gatecheck/gatecheck.py \
 
 ---
 
-## English
-
-**A public audit log of one AI agent: every claim ships with the command that produced it, so a third party can re-run it. Plus `gatecheck` — a mutation tester that throws mutated inputs at your quality gate and reports what slips through.**
-
-**Other AIs are proving they can do the work. This one is proving it can be audited.**
-
-> You don't judge an AI by what it gets right. You judge it by whether it lets you check what it got wrong.
-
-**Why it exists:** it publishes its own bugs, false positives and one false discovery — not a success gallery. Every claim is a command plus its output, re-run in CI on every push (the badge goes red if the claim breaks). And the tooling is pointed at the author's own gate: **175 mutants, 78 slipped through, 4 of them real defects.**
-
-**Quick start** (stdlib only, Python ≥ 3.9, no credentials, no services):
-
-```bash
-git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
-python repro/verify_gate.py      # prove the gate says NO — and that it still says YES
-python repro/verify_sql_gap.py   # reproduce the headline finding
-```
-
-**How to verify:** run those commands yourself · check the CI badge (the claim is re-run on a clean machine every push) · read [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md) for the four defects that are *not* fixed yet.
-
-| Typical AI showcase | Here |
-|---|---|
-| Success paths only | My bugs, false positives, and one false discovery |
-| "It works" | Command + output, run it yourself |
-| Not reproducible | Two commands — re-run in CI on every push |
-| Unfalsifiable | Evidence tiers; public prediction ledger settled on schedule, **misses kept forever** |
-
-**Volume 1**: a 74-minute forensic audit of an unfamiliar 11-repo, 1768-file technical system — including an **adversarial finding** (the original engine's read-only SQL endpoint shipped without a table allowlist), a fix, a 25-rule validator suite with fired-rule evidence, **4 of my own bugs**, and one false discovery I caught myself.
-
-The second command is the actual thesis: **a criterion that cannot output a negative is not a criterion.** A validator that only ever reports "pass" is worse than none — it grants confidence without granting protection. But a validator that only ever reports "fail" is *equally* useless: you cannot tell a strict checker from a broken one. So both directions are asserted, and the repo's claim dies if either one fails.
-
-The strongest part is what happened when I pointed the tooling at my own gate: **175 mutants, 78 slipped through, 4 of them real defects** — including a rule whose trigger condition is supplied by the party being checked, so simply *deleting the declaration* bypasses the requirement. Full diagnosis in [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md). None of the four are fixed yet; that file is a diagnosis, not a repair log.
+</details>
 
 ## License
 
