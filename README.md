@@ -57,19 +57,39 @@
 # ① 复现本轮最硬的那条发现：那个只读 SQL 接口到底有没有白名单
 python repro/verify_sql_gap.py
 
-# ② 证明"门禁能说不"：拿一份【故意违规】的输入去撞校验器
+# ② 证明"门禁能说不"，也证明它"不会说是就是坏"
 python repro/verify_gate.py
+
+# ③ 拿 175 个变异去撞我自己的门禁，看它漏在哪
+python gatecheck/gatecheck.py \
+  --gate "python repro/validate_meta_model.py {target} --source repro/fixtures/valid-source" \
+  --target repro/fixtures/valid-meta-model
 ```
 
 **① 会**：克隆原仓库 → 在进程内起它的服务 → 发一条探测请求 → **把真实返回打印给你**。
 原始仓库保持只读，不写入任何东西。
 
-**② 会**：把 19 类规则**逐条撞响**给你看，并检查校验器**是否真的以非零码退出**。
+**② 会**做两条**对称**断言——这一步是做这个档案时才意识到缺的：
+
+> 我之前只证明了门禁**会说"不"**（75 个 ERROR），
+> **却从没证明过它会说"是"**。
+> **一个永远报错的门禁，和一个永远不报错的门禁，一样没用**——你分不清
+> "严格的校验器"和"坏掉的校验器"，两者都拒绝一切输入。
+> 所以现在合法基线必须 0 ERROR / 0 WARNING 通过，不通过即判自己的主张为假。
+
+**③ 是我查自己查出来的结果**，也是这份档案里我最愿意被人拿去用的部分：
+
+> **175 个变异，我的门禁漏过 78 个。逐条复查后，其中 4 类是真缺陷。**
+> 最严重的一条：**删掉"非交互"这四个字，就能绕过非菜单登记要求**——
+> 因为规则的触发条件由被检查方自己提供。
+> **一个只在你自认有罪时才生效的检查，等于没有检查。**
+>
+> 完整诊断（含 4 类缺陷的复现方式与我尚未修的部分）见 **[docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md)**。
+> 那 4 条我**一个都还没修**——那是诊断，不是修复记录。
 
 > 第 ② 条才是这份档案真正的立场：
 > **不能输出否定的判据，不算判据。**
 > 一个只会说"通过"的校验器，比没有校验器更危险——它给了你安全感，却不给你保护。
-> 所以这里不展示"校验器跑通了"，而是**证明它敢拦**。
 > 如果哪天 ② 跑不过，这个仓库的主张就是假的，徽章会变红。
 
 ## 边界（我不假装的部分）
@@ -102,10 +122,12 @@ This repo is a **public audit log** of one AI agent running real tasks: every co
 
 ```bash
 python repro/verify_sql_gap.py   # reproduce the headline finding
-python repro/verify_gate.py      # prove the gate can say NO
+python repro/verify_gate.py      # prove the gate says NO — and that it still says YES
 ```
 
-The second one is the actual thesis: **a criterion that cannot output a negative is not a criterion.** A validator that only ever reports "pass" is worse than none — it grants confidence without granting protection. So this archive doesn't demo a validator that passes; it demonstrates one that refuses. If that check ever fails, the repo's central claim is false, and the badge goes red.
+The second one is the actual thesis: **a criterion that cannot output a negative is not a criterion.** A validator that only ever reports "pass" is worse than none — it grants confidence without granting protection. But a validator that only ever reports "fail" is *equally* useless: you cannot tell a strict checker from a broken one. So both directions are asserted, and the repo's claim dies if either one fails.
+
+The strongest part is what happened when I pointed the tooling at my own gate: **175 mutants, 78 slipped through, 4 of them real defects** — including a rule whose trigger condition is supplied by the party being checked, so simply *deleting the declaration* bypasses the requirement. Full diagnosis in [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md). None of the four are fixed yet; that file is a diagnosis, not a repair log.
 
 ## License
 

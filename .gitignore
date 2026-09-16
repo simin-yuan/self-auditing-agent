@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+
+# gatecheck 的产物：报告与保留的漏过变异体
+gatecheck-report.json
+gatecheck-missed/
