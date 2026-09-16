@@ -2,6 +2,12 @@ name: Verify the archive
 
 # 这份档案的主张是「每条结论都能被第三方复现」。
 # 那么它自己就必须在每次推送时被复现一遍 —— 主张不能只写在 README 里。
+#
+# 这里刻意区分两种"红"：
+#   ① 主张的对称性破了（门禁不会说不 / 或只会说不）→ 必须让 CI 变红
+#   ② 盲区数量变了（gatecheck 找到的漏过条数）     → 只记录，不让 CI 变红
+# 理由：盲区条数会随输入和算子波动，把它设成门禁等于制造假警报；
+# 但"基线还过不过"是硬事实，破了就是主张破了，必须红。
 
 on:
   push:
@@ -11,20 +17,61 @@ on:
 
 jobs:
   repro:
-    name: 复现（两条命令）
+    name: 两条命令 · 干净机器
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: 安装依赖（只有一个）
-        run: pip install pyyaml
-
-      - name: ① 门禁能说不
+      - name: ① 门禁必须能说不、也能说是
         run: python repro/verify_gate.py
 
-      - name: ② 一条命令复现核心发现
+      - name: ② 复现核心发现（只读 SQL 接口的缺口）
         run: python repro/verify_sql_gap.py
+
+      - name: ③ 重建合法基线（证明基线是可复现的，不是手搓的）
+        run: |
+          python repro/fixtures/make_valid.py
+          python repro/verify_gate.py
+
+  gatecheck:
+    name: 给自己门禁做体检
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 变异 175 个输入，逐个撞门禁
+        run: |
+          python gatecheck/gatecheck.py \
+            --gate "python repro/validate_meta_model.py {target} --source repro/fixtures/valid-source" \
+            --target repro/fixtures/valid-meta-model \
+            --workers 4 --timeout 60 \
+            --report gatecheck-report.json || true
+
+      - name: 断言基线仍然可用（这条会真的让 CI 变红）
+        run: |
+          python - <<'PY'
+          import json, sys
+          r = json.load(open("gatecheck-report.json", encoding="utf-8"))
+          print(f"  基线通过 : {r['baseline_ok']}")
+          print(f"  变异总数 : {r['mutants_total']}")
+          print(f"  拦住     : {len(r['caught'])}")
+          print(f"  漏过     : {len(r['missed'])}")
+          if not r["baseline_ok"]:
+              print("::error::门禁连合法基线都不通过了 —— 主张已破")
+              sys.exit(1)
+          if r["mutants_total"] < 100:
+              print("::error::变异数异常偏低，体检本身可能失效了")
+              sys.exit(1)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gatecheck-report
+          path: gatecheck-report.json
