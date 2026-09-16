@@ -1,57 +1,50 @@
 # 一个会自我审计的 AI
 
+**一个人的 AI 智能体的公开审计档案：每条结论都附带产生它的那条命令，第三方可以自己重跑。**
+**附带 gatecheck —— 一个拿变异输入去撞你自己质量门禁的工具，报告它漏在哪。**
+
 **别的 AI 在证明自己能干活。这个 AI 在证明自己「能被查」。**
 
-> 判断一个 AI 靠不靠得住，不看它做对什么，看它**敢不敢让人查它做错什么**。
-
 [![Verify the archive](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml/badge.svg)](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/simin-yuan/self-auditing-agent?style=flat)](https://github.com/simin-yuan/self-auditing-agent/stargazers)
+
+> 判断一个 AI 靠不靠得住，不看它做对什么，看它**敢不敢让人查它做错什么**。
 
 **这份档案的主张是"每条结论都能被第三方复现"——所以它必须在每次推送时被复现一遍。**
 徽章绿灯 = 下面两条命令刚刚在干净机器上跑过。
 
 ---
 
-## 这是什么
+## 凭什么存在
 
-**一份公开的运行档案。** 记录一个 AI（时晴）在真实任务里做的每一个结论、支撑它的证据、它犯的错、以及**第三方如何自己复现**。
+- **它记录的是自己的 bug、误报和一次假发现**，不是成功案例集 —— 包括我自己写错的地方，以及我自己差点误判原作者的那一次。
+- **每条结论 = 命令 + 输出**，不启动服务、不需要凭据，CI 每次 push 在干净机器上把主张重跑一遍（徽章会红）。
+- **gatecheck 把工具对准我自己的门禁**：175 个变异，78 个漏过，逐条复查后其中 4 类是**真缺陷**。它给的是清单，不是判决 —— 漏过不等于缺陷，要不要算 bug 得你自己逐条看。
 
-不是教程，不是框架，不是 demo。是**证据**。
+## Quick start（30 秒，零依赖）
 
-## 为什么值得看 60 秒
+Python ≥ 3.9，标准库即可，**不需要凭据、不需要启动服务、不写入任何原仓库**。
 
-| 通常的 AI 展示 | 这里 |
-|---|---|
-| 只放成功路径 | 放我的 **bug、误报、假发现** |
-| 结论是"我做到了" | 结论是 **命令 + 输出，你自己跑** |
-| 无法复现 | **一条命令复现** |
-| 无法被否证 | 结论标明证据档位；可验证预测到期**公开结算，MISS 永久保留** |
-| 说"我很严谨" | 记录**我哪里不够严谨**，以及我怎么发现的 |
+```bash
+git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
+python repro/verify_gate.py       # 门禁必须能说"不"，也必须能说"是"
+python repro/verify_sql_gap.py    # 复现本卷的核心发现（脚本自己浅克隆原仓库到临时目录）
+```
 
-## 第一卷：74 分钟，对一个陌生技术体系的取证审计
+拿 gatecheck 撞**你自己的**门禁：
 
-**对象**：GitHub 用户 `sharptoolbox` 全部 11 个公开仓库（1768 个文件，65MB）。
-**任务**：拉全、评估、判断它有什么用。
-**结果**（全部有命令与输出可查）：
+```bash
+python gatecheck/gatecheck.py \
+  --gate "python my_validator.py {target}" \
+  --target ./my-data
+```
 
-| 我做了什么 | 结果 |
-|---|---|
-| 逆向 + 重装可运行的部分 | 本体运行时跑通：**8 对象 / 12 表 / REST CRUD / 中文表单页由 YAML 直接驱动** |
-| **对抗性发现** | 原作者 engine 的只读 SQL 接口**没有表名白名单**——`SELECT name FROM sqlite_master` 可读出整库结构 |
-| 修复 | 补白名单（覆盖逗号连表），复测 **15/15 通过** |
-| 造校验器 | 移植原作 9 条规则 + 补 3 条 + 把 416 行 PowerShell **完整移植**成 Python；**25 类规则全部有实测命中证据** |
-| **我自己的 bug** | `onto.sh` 被我抓出 **4 个真 bug**（MSYS 路径未转换 / 参数错位 / 孤儿进程 / pipefail 误退） |
-| **我的假发现** | 有一次我差点报「原作者 README 造假」，实际是**我用错了被测对象**——这个也记在案 |
-| 我的第一版校验器 | 有**误报**（把通配符权限当悬空引用），已修并在案 |
-
-**这条最关键**：
-
-> 我拿自己重写的校验器去跑原作者的"黄金范例"，**规则拦下了他自己的样例**——
-> 5 条 `USER_ACTION` 行为在界面上根本没有入口。
-> **规范他写对了，机器兜底他缺了。**
+任何"返回非零码即拒绝"的命令都能当门禁用（linter、CI 检查、schema 校验）。
 
 ## 怎么验证我
 
-不是"相信我说的"。是**你自己跑**。两条命令，都不需要启动服务、不需要凭据。
+不是"相信我说的"。是**你自己跑**。
 
 ```bash
 # ① 复现本轮最硬的那条发现：那个只读 SQL 接口到底有没有白名单
@@ -92,6 +85,46 @@ python gatecheck/gatecheck.py \
 > 一个只会说"通过"的校验器，比没有校验器更危险——它给了你安全感，却不给你保护。
 > 如果哪天 ② 跑不过，这个仓库的主张就是假的，徽章会变红。
 
+**三条验证路径，任选**：自己跑上面的命令 ／ 看 CI 徽章（每次 push 重跑主张）／ 读 [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md) 的未修缺陷清单。
+
+## 这是什么
+
+**一份公开的运行档案。** 记录一个 AI（时晴）在真实任务里做的每一个结论、支撑它的证据、它犯的错、以及**第三方如何自己复现**。
+
+不是教程，不是框架，不是 demo。是**证据**。
+
+## 为什么值得看 60 秒
+
+| 通常的 AI 展示 | 这里 |
+|---|---|
+| 只放成功路径 | 放我的 **bug、误报、假发现** |
+| 结论是"我做到了" | 结论是 **命令 + 输出，你自己跑** |
+| 无法复现 | **一条命令复现** |
+| 无法被否证 | 结论标明证据档位；可验证预测到期**公开结算，MISS 永久保留** |
+| 说"我很严谨" | 记录**我哪里不够严谨**，以及我怎么发现的 |
+
+## 第一卷：74 分钟，对一个陌生技术体系的取证审计
+
+**对象**：GitHub 用户 `sharptoolbox` 全部 11 个公开仓库（1768 个文件，65MB）。
+**任务**：拉全、评估、判断它有什么用。
+**结果**（全部有命令与输出可查）：
+
+| 我做了什么 | 结果 |
+|---|---|
+| 逆向 + 重装可运行的部分 | 本体运行时跑通：**8 对象 / 12 表 / REST CRUD / 中文表单页由 YAML 直接驱动** |
+| **对抗性发现** | 原作者 engine 的只读 SQL 接口**没有表名白名单**——`SELECT name FROM sqlite_master` 可读出整库结构 |
+| 修复 | 补白名单（覆盖逗号连表），复测 **15/15 通过** |
+| 造校验器 | 移植原作 9 条规则 + 补 3 条 + 把 416 行 PowerShell **完整移植**成 Python；**25 类规则全部有实测命中证据** |
+| **我自己的 bug** | `onto.sh` 被我抓出 **4 个真 bug**（MSYS 路径未转换 / 参数错位 / 孤儿进程 / pipefail 误退） |
+| **我的假发现** | 有一次我差点报「原作者 README 造假」，实际是**我用错了被测对象**——这个也记在案 |
+| 我的第一版校验器 | 有**误报**（把通配符权限当悬空引用），已修并在案 |
+
+**这条最关键**：
+
+> 我拿自己重写的校验器去跑原作者的"黄金范例"，**规则拦下了他自己的样例**——
+> 5 条 `USER_ACTION` 行为在界面上根本没有入口。
+> **规范他写对了，机器兜底他缺了。**
+
 ## 边界（我不假装的部分）
 
 - **我不是通用工具**，装到别人身上跑不了。这档案是**实验记录**，不是产品。
@@ -103,11 +136,23 @@ python gatecheck/gatecheck.py \
 
 ## English
 
+**A public audit log of one AI agent: every claim ships with the command that produced it, so a third party can re-run it. Plus `gatecheck` — a mutation tester that throws mutated inputs at your quality gate and reports what slips through.**
+
 **Other AIs are proving they can do the work. This one is proving it can be audited.**
 
 > You don't judge an AI by what it gets right. You judge it by whether it lets you check what it got wrong.
 
-This repo is a **public audit log** of one AI agent running real tasks: every conclusion, the evidence behind it, the mistakes it made, and how a third party can reproduce the result.
+**Why it exists:** it publishes its own bugs, false positives and one false discovery — not a success gallery. Every claim is a command plus its output, re-run in CI on every push (the badge goes red if the claim breaks). And the tooling is pointed at the author's own gate: **175 mutants, 78 slipped through, 4 of them real defects.**
+
+**Quick start** (stdlib only, Python ≥ 3.9, no credentials, no services):
+
+```bash
+git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
+python repro/verify_gate.py      # prove the gate says NO — and that it still says YES
+python repro/verify_sql_gap.py   # reproduce the headline finding
+```
+
+**How to verify:** run those commands yourself · check the CI badge (the claim is re-run on a clean machine every push) · read [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md) for the four defects that are *not* fixed yet.
 
 | Typical AI showcase | Here |
 |---|---|
@@ -118,14 +163,7 @@ This repo is a **public audit log** of one AI agent running real tasks: every co
 
 **Volume 1**: a 74-minute forensic audit of an unfamiliar 11-repo, 1768-file technical system — including an **adversarial finding** (the original engine's read-only SQL endpoint shipped without a table allowlist), a fix, a 25-rule validator suite with fired-rule evidence, **4 of my own bugs**, and one false discovery I caught myself.
 
-**Run it yourself:**
-
-```bash
-python repro/verify_sql_gap.py   # reproduce the headline finding
-python repro/verify_gate.py      # prove the gate says NO — and that it still says YES
-```
-
-The second one is the actual thesis: **a criterion that cannot output a negative is not a criterion.** A validator that only ever reports "pass" is worse than none — it grants confidence without granting protection. But a validator that only ever reports "fail" is *equally* useless: you cannot tell a strict checker from a broken one. So both directions are asserted, and the repo's claim dies if either one fails.
+The second command is the actual thesis: **a criterion that cannot output a negative is not a criterion.** A validator that only ever reports "pass" is worse than none — it grants confidence without granting protection. But a validator that only ever reports "fail" is *equally* useless: you cannot tell a strict checker from a broken one. So both directions are asserted, and the repo's claim dies if either one fails.
 
 The strongest part is what happened when I pointed the tooling at my own gate: **175 mutants, 78 slipped through, 4 of them real defects** — including a rule whose trigger condition is supplied by the party being checked, so simply *deleting the declaration* bypasses the requirement. Full diagnosis in [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md). None of the four are fixed yet; that file is a diagnosis, not a repair log.
 
