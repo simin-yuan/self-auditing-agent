@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gatecheck"
+version = "1.0.0"
+description = "你的门禁真的会拦吗？自动变异输入，逐个撞你的校验器，报告它漏在哪。"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["testing", "mutation-testing", "linter", "validation", "ci", "quality-gate"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+]
+# 唯一的依赖就是 Python 标准库 —— 这是有意的：
+# 一个要求别人先装一堆东西的质量工具，不会被用在关键路径上。
+dependencies = []
+
+[project.scripts]
+gatecheck = "gatecheck:main"
+
+[tool.setuptools]
+py-modules = ["gatecheck"]
