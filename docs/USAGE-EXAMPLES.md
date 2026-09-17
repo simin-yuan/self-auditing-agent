@@ -1,23 +1,28 @@
-# What slips through: four popular validators, one deleted line
+# Usage examples: what gatecheck prints on four kinds of rule file
 
-This is the raw material behind gatecheck's claim. It is not a bug report against
-`jsonschema`, `check-jsonschema`, `ajv` or `guardrails-ai` — all four behaved exactly
-as specified. It is a demonstration of the failure that sits **one level above** them.
+gatecheck is meant to be run on **your own** rules. These four examples show what its output
+looks like — and, just as important, what the triage step does to a raw candidate list before
+anyone calls anything a defect.
+
+What they do **not** say: that any of these projects is unsafe. Every rule file below was
+written for the example, the deleted line was deleted on purpose, and all four tools behaved
+exactly as specified. The observation is narrower: **when a rule line disappears from a rule
+file, nothing in the pipeline tells you.** That is the surface gatecheck exists to expose,
+and the reason to run it on your own rules instead of reading someone else's.
 
 Every command and every line of output below was run on 2026-09-17 and is reproduced
-verbatim. The fixtures are in [`repro/gate-bypass/`](../repro/gate-bypass/) — copy them, run them, disagree with me.
+verbatim. The fixtures are in [`repro/examples/`](../repro/examples/) — copy them, run them, disagree with me.
 
-## Method
+## The shape of the demonstration
 
-Three JSON Schema validators, the same schema, the same data, the same three steps:
+The same three steps on each rule file:
 
-1. original schema + valid data → the gate must pass
-2. original schema + invalid data (`"timeout": "30"` — a string where the schema requires an integer) → the gate must reject
-3. **the schema with one line deleted** (`"type": "integer"`) + the same invalid data → ?
+1. rule file as written + valid input → the gate must pass
+2. rule file as written + input that violates it (`"timeout": "30"` — a string where an integer is required) → the gate must reject
+3. **the rule file with one line deleted** (`"type": "integer"`) + the same invalid input → ?
 
-Step 3 is the whole experiment. Nobody edits a schema by accident in a code review
-that is watched by a human; they edit it in a hurry, and the CI is green afterwards
-either way.
+Step 3 is the one that matters. Nobody deletes a schema line during a change anyone
+reviews closely; they do it in a hurry, and CI is green either way.
 
 ## 1. jsonschema (Python, draft 2020-12 reference implementation)
 
@@ -86,9 +91,9 @@ break. **It got narrower by exactly one rule, and nothing outside can tell the
 difference** — no error, no warning, no change in exit code. The rule did not fail;
 it stopped existing.
 
-## What the mutation run found, and what it did not
+## Triage: what the tool prints vs. what survives review
 
-Running [gatecheck](../gatecheck/) over the same four setups (67–109 mutants each,
+Running [gatecheck](../gatecheck/) over these four rule files (67–109 mutants each,
 one gate invocation per mutant):
 
 | target | mutants | caught | escaped | escaped that actually disarm the gate |
@@ -131,10 +136,10 @@ judgement.
 ## Reproduce
 
 ```bash
-cd repro/gate-bypass/01-jsonschema && sh run.sh     # jsonschema
-cd repro/gate-bypass/02-check-jsonschema && sh run.sh
-cd repro/gate-bypass/03-ajv && sh run.sh
-cd repro/gate-bypass/04-guardrails && sh run.sh      # needs: pip install guardrails-ai
+cd repro/examples/01-jsonschema && sh run.sh     # jsonschema
+cd repro/examples/02-check-jsonschema && sh run.sh
+cd repro/examples/03-ajv && sh run.sh
+cd repro/examples/04-guardrails && sh run.sh      # needs: pip install guardrails-ai
 ```
 
 `observed_output.txt` holds the raw transcript of the first three runs. The

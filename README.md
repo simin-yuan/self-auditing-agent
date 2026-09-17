@@ -1,43 +1,44 @@
 # gatecheck
 
-**Does your quality gate actually reject anything?**
+**Your gate can silently lose a rule and CI stays green. gatecheck finds the rules nothing is actually testing.**
 
-Give it two things: a gate command (anything that exits non-zero to mean *reject*) and a
-baseline input that currently passes. It mutates the input N ways, **re-runs your gate once
-per mutant**, and reports which edits the gate caught and which it let through.
+Point it at your own rules — a JSON Schema, a CI check, a lint or policy config, an LLM
+guardrail — together with the command that is supposed to reject bad input. gatecheck
+deletes and corrupts one line at a time, re-runs that command for every edit, and reports
+the edits it did not react to. Each survivor names a rule that nothing in your pipeline is
+testing.
 
-**Result, from the experiment in [`docs/WHAT-SLIPS-THROUGH.md`](docs/WHAT-SLIPS-THROUGH.md):**
-deleting **one line** turned four popular validators into no-ops against input they had
-just rejected — `jsonschema`, `check-jsonschema` and `ajv` (one line out of a JSON Schema)
-and `guardrails-ai` (one line out of an LLM output guard's rule list). All four exited `0`.
-None of them is buggy; all four behaved exactly as specified. The check went silent, and
-green is green.
+**30 seconds, nothing to install:**
 
 ```bash
 git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
 python gatecheck/gatecheck.py \
-  --gate "python my_validator.py {target}" \
-  --target ./my-data
+  --gate "python examples/gate.py {target}" \
+  --target examples/service-config
 ```
 
 ![gatecheck output](docs/img/gatecheck-output.png)
 
-Any command that returns non-zero to mean "reject" works as the gate — a linter, a CI step,
-a schema validator. **Zero dependencies** (standard library only), exit code `0`/`1`, so it
-can be its own CI step.
+Keep your gate command outside `--target` — otherwise gatecheck will point the mutations at
+the gate itself.
 
-> **It does not give you a verdict. It gives you a list.** Of the 20 mutants that slipped
-> past the gate above, **2** actually disarm it and 18 are harmless. A tool that shouted
-> "20 defects!" would be lying, and you would stop believing it the second time you checked.
-> Full triage in [`docs/WHAT-SLIPS-THROUGH.md`](docs/WHAT-SLIPS-THROUGH.md).
+Any command that exits non-zero to mean "reject" works as the gate — a linter, a CI step, a
+schema validator, your own `validate.py`. **Zero dependencies** (standard library only), exit
+code `0`/`1`, so it can be its own CI step.
+
+> **It does not give you a verdict. It gives you a list.** A surviving mutant is a candidate,
+> not a defect: in the run above most of the survivors are harmless (deleting a `title`,
+> deleting an optional property). A tool that shouted "19 defects!" would be lying to you,
+> and you would stop believing it the second time you checked.
 
 **Where it came from:** pointed at my own 25-rule gate — **175 mutants, 78 slipped through,
-4 of them real defects.** The worst: a rule whose trigger condition was supplied by the party
-being inspected, so deleting four words bypassed it. *A check that only applies once you admit
-guilt is not a check.* Diagnosis, including the four I have **not** fixed: [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md).
+4 of them real defects.** The worst one is a real design defect, not a simulated one: a rule
+whose trigger condition is supplied by the party being inspected — *"if you declare yourself
+non-interactive, you must be registered"* — so deleting the declaration removes the
+requirement. *A check that only applies once you admit guilt is not a check.* All four are
+documented, including the ones I have **not** fixed: [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md).
 
-**中文**：# gatecheck — **你的门禁真的会拦吗？** 给它一个门禁命令和一份合法输入，
-它自动变异输入、逐个撞门禁，报告漏在哪。**它不给你判决，它给你清单。** 零依赖、退出码 0/1、可直接进 CI。
+**中文**：# gatecheck — **你的门禁可能已经悄悄少了一条规则，而 CI 还是绿的。** 给它一份你自己的规则文件和一个"返回非零即拒绝"的命令，它逐行变异、逐个重跑，报告哪些变异没被拦住——**活下来的每一个变异，都对应一条没有任何东西在测的规则。** 零依赖、退出码 0/1、可直接进 CI。
 
 ---
 
@@ -82,24 +83,39 @@ The strongest part is what happened when I pointed the tooling at my own gate: *
 <details>
 <summary><b>中文版 — gatecheck + 一个会自我审计的 AI（点开）</b></summary>
 
-# gatecheck：你的门禁真的会拦吗？
+# gatecheck：你的门禁可能已经悄悄少了一条规则，而 CI 还是绿的
 
-**给它一个门禁命令 + 一份合法输入，它把输入变异 N 种，逐个重跑你的门禁，报告哪些变异被拦住、哪些漏过了。**
+**gatecheck 找出那些"没有任何东西在测"的规则。**
 
-**结果**（完整复现见 [docs/WHAT-SLIPS-THROUGH.md](docs/WHAT-SLIPS-THROUGH.md)）：**删掉一行**，四个流行校验器就都对刚刚还被拒绝的输入放行了——`jsonschema`、`check-jsonschema`、`ajv`（删的是 JSON Schema 里的一行约束），以及 `guardrails-ai`（删的是 LLM 输出门禁规则列表里的一行）。四个退出码全是 0，没有一句提示。四个工具都没 bug，行为全部符合规范——**是检查本身静默了，而绿的就是绿的**。
+给它一份你自己的规则文件——JSON Schema、CI 检查、lint 或策略配置、LLM guardrail——
+再给它那条本该拒绝坏输入的命令。它逐行删改你的规则文件，每改一次就重跑一次那条命令，
+报告哪些改动它**没有反应**。每一个活下来的变异，都对应一条没有任何东西在测的规则。
+
+**30 秒跑完，不需要装任何东西：**
 
 ```bash
 git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
-python gatecheck/gatecheck.py --gate "python my_validator.py {target}" --target ./my-data
+python gatecheck/gatecheck.py \
+  --gate "python examples/gate.py {target}" \
+  --target examples/service-config
 ```
 
 ![gatecheck 输出](docs/img/gatecheck-output.png)
 
-零依赖（只用 Python 标准库），退出码 0/1，可以直接当一个 CI 步骤。
+门禁命令要放在 `--target` 外面，否则 gatecheck 会把变异打在门禁自己身上。
 
-> **它不给你判决，它给你清单。** 上面那次运行漏过 20 个变异，逐条复查后**只有 2 个真的把门禁拆了**，另外 18 个无害。谁要是喊"发现 20 个缺陷"，第二次你就不会再信它了。
+任何"返回非零即拒绝"的命令都能当门禁——linter、CI 步骤、schema 校验、你自己写的
+`validate.py`。零依赖（只用 Python 标准库），退出码 0/1，可以直接当一个 CI 步骤。
 
-来历：拿它撞**我自己**的 25 条规则门禁 —— **175 个变异，漏过 78 个，其中 4 类是真缺陷**。最狠的一条：规则的触发条件由被检方自己提供，**删掉四个字就能绕过全部检查**。
+> **它不给你判决，它给你清单。** 活下来的变异是候选不是缺陷：上面那次运行里，
+> 大部分漏过是无害的（比如删掉 `title`、删掉可选字段）。谁要是喊"发现 19 个缺陷"，
+> 第二次你就不会再信它了。
+
+来历：拿它撞**我自己**的 25 条规则门禁 —— **175 个变异，漏过 78 个，其中 4 类是真缺陷**。
+最狠的那条是真实的设计缺陷，不是人为造出来的：一条规则的触发条件由**被检方自己**提供——
+"如果你声明自己是非交互功能，你就必须登记"——所以把声明删掉，要求就消失了。
+**一个只在你自认有罪时才生效的检查，等于没有检查。** 四条都记录在案，包括**我一条都还没修**的部分：
+[docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md)。
 
 ---
 
