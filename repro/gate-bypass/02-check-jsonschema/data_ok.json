@@ -1,0 +1,11 @@
+{
+  "name": "billing-api",
+  "mode": "sync",
+  "timeout": 30,
+  "endpoints": [
+    {
+      "url": "https://api.example.com/v1/charges",
+      "method": "POST"
+    }
+  ]
+}

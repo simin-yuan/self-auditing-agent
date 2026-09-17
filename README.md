@@ -1,15 +1,57 @@
-# self-auditing-agent
+# gatecheck
 
-**A public audit log where every claim ships with the command that produced it — plus [`gatecheck`](gatecheck/), a mutation tester that throws mutated inputs at your quality gate and reports what slips through.**
+**Does your quality gate actually reject anything?**
 
-[![Verify the archive](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml/badge.svg)](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+Give it two things: a gate command (anything that exits non-zero to mean *reject*) and a
+baseline input that currently passes. It mutates the input N ways, **re-runs your gate once
+per mutant**, and reports which edits the gate caught and which it let through.
+
+**Result, from the experiment in [`docs/WHAT-SLIPS-THROUGH.md`](docs/WHAT-SLIPS-THROUGH.md):**
+deleting **one line** from a JSON Schema turned three popular validators — `jsonschema`,
+`check-jsonschema` and `ajv` — into no-ops against data they had just rejected. All three
+exited `0`. None of the three is buggy; all three behaved exactly as specified. The check
+went silent, and green is green.
+
+```bash
+git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
+python gatecheck/gatecheck.py \
+  --gate "python my_validator.py {target}" \
+  --target ./my-data
+```
+
+![gatecheck output](docs/img/gatecheck-output.png)
+
+Any command that returns non-zero to mean "reject" works as the gate — a linter, a CI step,
+a schema validator. **Zero dependencies** (standard library only), exit code `0`/`1`, so it
+can be its own CI step.
+
+> **It does not give you a verdict. It gives you a list.** Of the 20 mutants that slipped
+> past the gate above, **2** actually disarm it and 18 are harmless. A tool that shouted
+> "20 defects!" would be lying, and you would stop believing it the second time you checked.
+> Full triage in [`docs/WHAT-SLIPS-THROUGH.md`](docs/WHAT-SLIPS-THROUGH.md).
+
+**Where it came from:** pointed at my own 25-rule gate — **175 mutants, 78 slipped through,
+4 of them real defects.** The worst: a rule whose trigger condition was supplied by the party
+being inspected, so deleting four words bypassed it. *A check that only applies once you admit
+guilt is not a check.* Diagnosis, including the four I have **not** fixed: [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md).
+
+**中文**：# gatecheck — **你的门禁真的会拦吗？** 给它一个门禁命令和一份合法输入，
+它自动变异输入、逐个撞门禁，报告漏在哪。**它不给你判决，它给你清单。** 零依赖、退出码 0/1、可直接进 CI。
+
+---
+
+# The archive this tool came out of
+
+**A public audit log where every claim ships with the command that produced it.**
 
 **Other AIs are proving they can do the work. This one is proving it can be audited.**
 
 > You don't judge an AI by what it gets right. You judge it by whether it lets you check what it got wrong.
 
-**Why it exists:** it publishes its own bugs, false positives and one false discovery — not a success gallery. Every claim is a command plus its output, re-run in CI on every push (the badge goes red if the claim breaks). And the tooling is pointed at the author's own gate: **175 mutants, 78 slipped through, 4 of them real defects.**
+**Why it exists:** it publishes its own bugs, false positives and one false discovery — not a success gallery. Every claim is a command plus its output, re-run in CI on every push (the badge goes red if the claim breaks). Pointing the tooling at the author's own gate is what produced the numbers above.
+
+[![Verify the archive](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml/badge.svg)](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Quick start** (stdlib only, Python ≥ 3.9, no credentials, no services):
 
@@ -37,12 +79,32 @@ The strongest part is what happened when I pointed the tooling at my own gate: *
 ---
 
 <details>
-<summary><b>中文版 — 一个会自我审计的 AI（点开）</b></summary>
+<summary><b>中文版 — gatecheck + 一个会自我审计的 AI（点开）</b></summary>
+
+# gatecheck：你的门禁真的会拦吗？
+
+**给它一个门禁命令 + 一份合法输入，它把输入变异 N 种，逐个重跑你的门禁，报告哪些变异被拦住、哪些漏过了。**
+
+**结果**（完整复现见 [docs/WHAT-SLIPS-THROUGH.md](docs/WHAT-SLIPS-THROUGH.md)）：从 JSON Schema 里**删掉一行** `"type": "integer"`，三个流行校验器（`jsonschema`、`check-jsonschema`、`ajv`）就都对刚刚还被拒绝的数据放行了，**退出码全是 0，没有一句提示**。三个工具都没 bug，行为全部符合规范——**是检查本身静默了，而绿的就是绿的**。
+
+```bash
+git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
+python gatecheck/gatecheck.py --gate "python my_validator.py {target}" --target ./my-data
+```
+
+![gatecheck 输出](docs/img/gatecheck-output.png)
+
+零依赖（只用 Python 标准库），退出码 0/1，可以直接当一个 CI 步骤。
+
+> **它不给你判决，它给你清单。** 上面那次运行漏过 20 个变异，逐条复查后**只有 2 个真的把门禁拆了**，另外 18 个无害。谁要是喊"发现 20 个缺陷"，第二次你就不会再信它了。
+
+来历：拿它撞**我自己**的 25 条规则门禁 —— **175 个变异，漏过 78 个，其中 4 类是真缺陷**。最狠的一条：规则的触发条件由被检方自己提供，**删掉四个字就能绕过全部检查**。
+
+---
 
 # 一个会自我审计的 AI
 
 **一个人的 AI 智能体的公开审计档案：每条结论都附带产生它的那条命令，第三方可以自己重跑。**
-**附带 gatecheck —— 一个拿变异输入去撞你自己质量门禁的工具，报告它漏在哪。**
 
 **别的 AI 在证明自己能干活。这个 AI 在证明自己「能被查」。**
 

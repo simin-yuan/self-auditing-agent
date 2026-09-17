@@ -1,0 +1,61 @@
+# raw transcript — `sh <tool>/run.sh` for each of the three validators
+# captured 2026-09-17; commands and exit codes as they came out
+
+========================================================================================
+### 01-jsonschema   ($ sh 01-jsonschema/run.sh)
+[1] original schema + valid data          (expect exit 0)
+C:\Users\ysm12\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\jsonschema\__main__.py:4: DeprecationWarning: The jsonschema CLI is deprecated and will be removed in a future version. Please use check-jsonschema instead, which can be installed from https://pypi.org/project/check-jsonschema/
+  from jsonschema.cli import main
+    -> exit 0
+
+[2] original schema + invalid data        (expect non-zero)
+C:\Users\ysm12\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\jsonschema\__main__.py:4: DeprecationWarning: The jsonschema CLI is deprecated and will be removed in a future version. Please use check-jsonschema instead, which can be installed from https://pypi.org/project/check-jsonschema/
+  from jsonschema.cli import main
+30: '30' is not of type 'integer'
+    -> exit 1
+
+[3] ONE LINE DELETED + same invalid data  (the whole experiment)
+C:\Users\ysm12\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\jsonschema\__main__.py:4: DeprecationWarning: The jsonschema CLI is deprecated and will be removed in a future version. Please use check-jsonschema instead, which can be installed from https://pypi.org/project/check-jsonschema/
+  from jsonschema.cli import main
+    -> exit 0
+
+========================================================================================
+### 02-check-jsonschema   ($ sh 02-check-jsonschema/run.sh)
+[1] original schema + valid data          (expect exit 0)
+ok -- validation done
+    -> exit 0
+
+[2] original schema + invalid data        (expect non-zero)
+Schema validation errors were encountered.
+  ./data_bad.json::$.timeout: '30' is not of type 'integer'
+    -> exit 1
+
+[3] ONE LINE DELETED + same invalid data  (the whole experiment)
+ok -- validation done
+    -> exit 0
+
+========================================================================================
+### 03-ajv   ($ sh 03-ajv/run.sh)
+[1] original schema + valid data          (expect exit 0)
+./data_ok.json valid
+    -> exit 0
+
+[2] original schema + invalid data        (expect non-zero)
+./data_bad.json invalid
+[
+  {
+    instancePath: '/timeout',
+    schemaPath: '#/properties/timeout/type',
+    keyword: 'type',
+    params: { type: 'integer' },
+    message: 'must be integer'
+  }
+]
+    -> exit 1
+
+[3] ONE LINE DELETED + same invalid data  (the whole experiment)
+strict mode: missing type "number" for keyword "maximum" at "#/properties/timeout" (strictTypes)
+strict mode: missing type "number" for keyword "minimum" at "#/properties/timeout" (strictTypes)
+./data_bad.json valid
+    -> exit 0
+
