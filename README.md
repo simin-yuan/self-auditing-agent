@@ -7,10 +7,11 @@ baseline input that currently passes. It mutates the input N ways, **re-runs you
 per mutant**, and reports which edits the gate caught and which it let through.
 
 **Result, from the experiment in [`docs/WHAT-SLIPS-THROUGH.md`](docs/WHAT-SLIPS-THROUGH.md):**
-deleting **one line** from a JSON Schema turned three popular validators — `jsonschema`,
-`check-jsonschema` and `ajv` — into no-ops against data they had just rejected. All three
-exited `0`. None of the three is buggy; all three behaved exactly as specified. The check
-went silent, and green is green.
+deleting **one line** turned four popular validators into no-ops against input they had
+just rejected — `jsonschema`, `check-jsonschema` and `ajv` (one line out of a JSON Schema)
+and `guardrails-ai` (one line out of an LLM output guard's rule list). All four exited `0`.
+None of them is buggy; all four behaved exactly as specified. The check went silent, and
+green is green.
 
 ```bash
 git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
@@ -85,7 +86,7 @@ The strongest part is what happened when I pointed the tooling at my own gate: *
 
 **给它一个门禁命令 + 一份合法输入，它把输入变异 N 种，逐个重跑你的门禁，报告哪些变异被拦住、哪些漏过了。**
 
-**结果**（完整复现见 [docs/WHAT-SLIPS-THROUGH.md](docs/WHAT-SLIPS-THROUGH.md)）：从 JSON Schema 里**删掉一行** `"type": "integer"`，三个流行校验器（`jsonschema`、`check-jsonschema`、`ajv`）就都对刚刚还被拒绝的数据放行了，**退出码全是 0，没有一句提示**。三个工具都没 bug，行为全部符合规范——**是检查本身静默了，而绿的就是绿的**。
+**结果**（完整复现见 [docs/WHAT-SLIPS-THROUGH.md](docs/WHAT-SLIPS-THROUGH.md)）：**删掉一行**，四个流行校验器就都对刚刚还被拒绝的输入放行了——`jsonschema`、`check-jsonschema`、`ajv`（删的是 JSON Schema 里的一行约束），以及 `guardrails-ai`（删的是 LLM 输出门禁规则列表里的一行）。四个退出码全是 0，没有一句提示。四个工具都没 bug，行为全部符合规范——**是检查本身静默了，而绿的就是绿的**。
 
 ```bash
 git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
