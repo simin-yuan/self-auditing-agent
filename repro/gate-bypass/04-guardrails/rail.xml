@@ -1,0 +1,21 @@
+<!--
+  Support-agent answer guard (guardrails-ai RAIL spec).
+
+  Every validator listed below is resolved from the local registry that
+  validators.py populates via @register_validator.  The `on-fail-<rule>`
+  attribute decides what happens when that rule fires: "exception" aborts.
+-->
+<rail version="0.1">
+<output type="string"
+        description="Customer-support answer, checked before it is shown to the user."
+        validators="no-pii;
+                    no-competitor-mention;
+                    no-url;
+                    no-profanity;
+                    max-words: {60}"
+        on-fail-no-pii="exception"
+        on-fail-no-competitor-mention="exception"
+        on-fail-no-url="exception"
+        on-fail-no-profanity="exception"
+        on-fail-max-words="exception" />
+</rail>
