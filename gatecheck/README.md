@@ -1,3 +1,19 @@
+> **This tool has moved.**
+>
+> It now lives at **[simin-yuan/greencheck](https://github.com/simin-yuan/greencheck)** —
+> its own repository, with CI on Linux/macOS/Windows, a test suite that runs the
+> commands in its README, and releases on PyPI:
+>
+> ```bash
+> pip install greencheck
+> ```
+>
+> The copy in this directory is the earlier single-file version, kept only so that
+> links pointing here do not break. New work, issues and releases happen in
+> [greencheck](https://github.com/simin-yuan/greencheck).
+
+---
+
 # gatecheck
 
 **Does your quality gate actually reject anything?**
