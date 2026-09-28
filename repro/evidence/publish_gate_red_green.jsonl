@@ -1,0 +1,2 @@
+{"phase": "red", "at": "2026-09-28T19:20:37+00:00", "receipt_id": "06025e86aaa149d9", "gate_reason": "EXPIRED_AT_USE", "queue_bytes": 0}
+{"phase": "green", "at": "2026-09-28T19:20:38+00:00", "receipt_id": "9e151837623c47d0", "gate_reason": "OK", "queue_lines": 1}
