@@ -36,6 +36,9 @@ jobs:
           python repro/fixtures/make_valid.py
           python repro/verify_gate.py
 
+      - name: ④ 收据的有效期在动作处判、不在签发处判
+        run: python repro/verify_receipts.py
+
   gatecheck:
     name: 给自己门禁做体检
     runs-on: ubuntu-latest
