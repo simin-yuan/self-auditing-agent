@@ -59,12 +59,21 @@ question is *"is this still in force right now"*, not *"was this really signed."
 ## Verify it
 
 ```bash
-python repro/verify_receipts.py
+python repro/verify_receipts.py       # 模块层：check() 在动作处拒绝
+python repro/verify_publish_gate.py   # 动作层：拒绝不是一个返回值，是一个没被写出去的字节
 ```
 
-Ten claims, both directions asserted: the ones that must be refused are refused,
-and the clean one is allowed. The run includes the exact gap this module closes —
-the same receipt that a *check-at-issue* implementation lets through:
+The first is the module answering a question. The second is the **action not
+happening**: the gate sits at a real publish site (`examples/publish_with_receipt.py`),
+a receipt is issued, real time is allowed to pass its expiry, and the gate refuses —
+queue still zero bytes. A fresh receipt then goes through. Red first, green after,
+both timestamps written down. One claim is the control: the *same* expired receipt
+is valid at issue time and is let through by a check-at-issue implementation.
+
+Ten claims in the first run, both directions asserted: the ones that must be
+refused are refused, and the clean one is allowed. The run includes the exact gap
+this module closes — the same receipt that a *check-at-issue* implementation lets
+through:
 
 ```
 [PASS] C1b  签发时有效、使用时已过期 → 拒绝 EXPIRED_AT_USE
