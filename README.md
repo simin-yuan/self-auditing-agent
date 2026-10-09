@@ -53,7 +53,7 @@ documented, including the ones I have **not** fixed: [docs/BLIND-SPOTS.md](docs/
 **Why it exists:** it publishes its own bugs, false positives and one false discovery — not a success gallery. Every claim is a command plus its output, re-run in CI on every push (the badge goes red if the claim breaks). Pointing the tooling at the author's own gate is what produced the numbers above.
 
 [![Verify the archive](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml/badge.svg)](https://github.com/simin-yuan/self-auditing-agent/actions/workflows/verify.yml)
-[![License: All Rights Reserved](https://img.shields.io/badge/license-All%20Rights%20Reserved-red.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 **Quick start** (stdlib only, Python ≥ 3.9, no credentials, no services):
 
@@ -255,4 +255,4 @@ python gatecheck/gatecheck.py \
 
 ## License
 
-All Rights Reserved — see [`LICENSE`](LICENSE).
+Code is MIT — see [`LICENSE`](LICENSE). Documentation under `volumes/` and `docs/` is CC BY 4.0 — see [`LICENSE-docs`](LICENSE-docs).
