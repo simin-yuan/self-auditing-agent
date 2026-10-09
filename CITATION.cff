@@ -2,6 +2,7 @@ cff-version: 1.2.0
 title: "self-auditing-agent — Volume 1: a forensic audit, with the auditor's own mistakes included"
 message: "If you cite this archive, cite the version you actually ran."
 type: dataset
+license: MIT
 authors:
   - family-names: Yuan
     given-names: Simin
