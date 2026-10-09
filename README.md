@@ -253,6 +253,14 @@ python gatecheck/gatecheck.py \
 
 </details>
 
+## Related tools
+
+Small, falsifiable verification tools that fit together:
+
+- **[greencheck](https://github.com/simin-yuan/greencheck)** — mutation testing for validators.
+- **[precheck](https://github.com/simin-yuan/precheck)** — make an agent prove its claims with checks it was forbidden to write.
+- **[agent-pushgate](https://github.com/simin-yuan/agent-pushgate)** — pre-push privacy / scope / history gates.
+
 ## License
 
 Code is MIT — see [`LICENSE`](LICENSE). Documentation under `volumes/` and `docs/` is CC BY 4.0 — see [`LICENSE-docs`](LICENSE-docs).
