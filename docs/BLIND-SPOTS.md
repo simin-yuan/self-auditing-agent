@@ -1,9 +1,9 @@
-# 我自己门禁的盲区（gatecheck 体检报告）
+# Blind spots in my own gate (a gatecheck health report)
 
-**这份文件的存在本身就是本档案的主张：一个说自己"可被查"的东西，必须先查自己。**
+**The existence of this file is what the archive claims: anything that says it can be checked must first check itself.**
 
-方法：`gatecheck` 对我自己的 25 类规则校验器做自动化变异测试——把合法输入
-切成 175 个变体，逐个撞门禁，看它拦不拦。
+Method: `gatecheck` runs automated mutation testing against my own 25-rule validator — it cuts legal
+input into 175 variants, drives each one at the gate, and watches whether the gate stops it.
 
 ```bash
 python gatecheck/gatecheck.py \
@@ -12,107 +12,121 @@ python gatecheck/gatecheck.py \
   --report gatecheck-report.json
 ```
 
-**结果：175 个变异，拦住 97 个，漏过 78 个（44%）。**
+**Result: 175 mutants, 97 caught, 78 missed (44%).**
 
-下面是我逐条复查后，判定为**真缺陷**的（其余多为语义合法的变异，不算缺陷）。
-
----
-
-## 缺陷 1（最严重）：删掉声明，即可绕过检查
-
-```
-漏过  drop-line:functional-inventory.md:9  →  "- 交互类型: non-interactive"
-```
-
-原始规则（`validate_meta_model.py:282`）的逻辑是：
-
-> **如果**一个功能声明自己是 `non-interactive`/`hybrid`，**那么**它必须登记进
-> `non-menu-function-index.md`。
-
-问题在于这是个**条件规则，而条件由被检查方自己提供**。
-
-所以最省事的绕过方法不是去补登记，而是**把"非交互"这四个字删掉**。
-删完之后，规则的前件不成立，后件自然不被要求——**门禁一声不吭。**
-
-**为什么这是真缺陷**：它把一个"要求"变成了"自愿"。一个只在你自认有罪时才生效的
-检查，等于没有检查。现实中这意味着：一个后台定时任务，只要在功能清单里不写
-交互类型，就能体面地不进任何登记册，而门禁全程绿灯。
-
-**修法方向**（尚未实现，见"未完成"）：把"每个功能必须声明交互类型"变成无条件规则；
-即先要求类型枚举合法且必填，再谈后续约束。**判据不应由被检方决定是否适用。**
+Below are the ones I reviewed one by one and judge to be **real defects** (most of the rest are
+mutations that are semantically legal, and do not count as defects).
 
 ---
 
-## 缺陷 2：实现链的小节可以全是空的
+## Defect 1 (the worst): delete the declaration and the check is bypassed
 
 ```
-漏过  drop-line:function-chain-index.md:27/29/31/33/35/37  →  "- 略"
+missed  drop-line:functional-inventory.md:9  ->  "- 交互类型: non-interactive"
 ```
 
-门禁检查 `### Requirement Link` 等 8 个小节**标题是否存在**，
-但**不检查小节里有没有内容**。
+The original rule (`validate_meta_model.py:282`) says:
 
-结果：8 个小节标题底下全空，门禁照样放行。**"结构齐了"被当成了"内容有了"。**
+> **If** a function declares itself `non-interactive`/`hybrid`, **then** it must be registered in
+> `non-menu-function-index.md`.
 
-这类缺陷的通用形态：**存在性检查冒充完整性检查。**
-磁盘上有个文件 ≠ 文件里有东西；有个字段 ≠ 字段被填了。
+The problem is that this is a **conditional rule, and the condition is supplied by the party being
+inspected**.
+
+So the cheapest way around it is not to file the registration — it is to **delete the declaration line**.
+Once it is gone the antecedent is false, so the consequent is not required, **and the gate says nothing at all.**
+
+**Why this is a real defect**: it turns a requirement into an opt-in. A check that only takes effect
+once you admit guilt is not a check. In practice this means a background scheduled task can simply not
+write an interaction type into the inventory, and it will never enter any register — with the gate green
+the whole way.
+
+**Direction of the fix** (not implemented yet, see "Not finished"): make "every function must declare an
+interaction type" an unconditional rule; that is, first require the type to be a legal, mandatory enum
+value, and only then talk about downstream constraints. **Whether a criterion applies must not be decided
+by the party under inspection.**
 
 ---
 
-## 缺陷 3：定义了但没人引用的 ID，改名不留痕
+## Defect 2: every subsection of an implementation chain can be empty
 
 ```
-漏过  break-ref:business-architecture.md:MENU-M1 → MENU-MZ
-漏过  break-ref:business-architecture.md:ENTRY-E1 → ENTRY-EZ
-漏过  break-ref:domain-model.md:OBJ-1       → OBJ-Z
+missed  drop-line:function-chain-index.md:27/29/31/33/35/37  ->  "- 略"
 ```
 
-门禁的引用检查是**单向**的：它检查"被引用的 ID 是否存在定义"，
-但不检查"定义的 ID 是否被任何东西引用"。
+The gate checks that 8 subsections such as `### Requirement Link` **have their headings**,
+but it **does not check whether the subsections contain anything**.
 
-所以一个没有任何引用者的定义，改名、删除、写错，**门禁都不会有反应**。
-（注：本轮最小基线里这几个 ID 恰好没有引用者，所以漏过是"结构正确但探测不到"——
-这暴露的是**门禁没有反向入口这个能力**，而不是这次输错了。）
+Result: all 8 headings with nothing underneath, and the gate still lets it through. **"The structure
+is complete" was taken for "the content is there".**
 
-对照：校验器里**有**一条针对行为的同类检查（`reference_index.py` 的反向引用），
-但主校验器没有。**同类规则在不同文件里成熟度不一致。**
+The general shape of this defect: **an existence check standing in for a completeness check.**
+A file on disk is not the same as something in the file; having a field is not the same as the field
+being filled in.
 
 ---
 
-## 缺陷 4：重复标题不可检测
+## Defect 3: an ID that is defined but referenced by nobody — renaming it leaves no trace
 
 ```
-漏过  dup-id:*.md  ×25（把每个文件的 H1 标题复制一份变成 ## 标题）
+missed  break-ref:business-architecture.md:MENU-M1 -> MENU-MZ
+missed  break-ref:business-architecture.md:ENTRY-E1 -> ENTRY-EZ
+missed  break-ref:domain-model.md:OBJ-1       -> OBJ-Z
 ```
 
-标题不是 ID，所以"同一个标题出现两次"没有任何规则覆盖。这在本轮无害，
-但如果任何下游工具靠标题做锚点，重复标题会让锚点指向错误的段。
+The gate's reference check is **one-directional**: it checks that "a referenced ID has a definition",
+but not that "a defined ID is referenced by anything".
+
+So a definition with no referrers can be renamed, deleted, or misspelled, **and the gate will not react**.
+(Note: in this minimal baseline those IDs happen to have no referrers, so the miss is "structurally correct
+but undetectable" — what it exposes is **the gate having no reverse entry point**, not a typo made this round.)
+
+For contrast, the validator **does** have the equivalent check for behaviours (the reverse references in
+`reference_index.py`), but the main validator does not. **The same kind of rule has different maturity in
+different files.**
 
 ---
 
-## 我不把这 78 个都叫缺陷
+## Defect 4: duplicate headings cannot be detected
 
-诚实起见：**78 个漏过里，多数在语义上是合法的变异**，例如：
+```
+missed  dup-id:*.md  x25 (copy each file's H1 heading into a second-level heading)
+```
 
-- `drop-line` 删掉 `- 略` 这类占位内容 —— 内容本就无意义；
-- `dup-id` 复制 H1 标题 —— 标题不是 ID，不构成冲突；
-- `empty-file` 清空"只需要存在"的文件 —— 门禁本就没打算验它的内容。
-
-把"变异没被拦"直接等同"门禁有 bug"，是**用数量冒充质量**。
-所以我逐条看了，只有上面 4 类是真的该被拦而没被拦。
-
-**gatecheck 的定位也因此明确：它不给你判决，它给你清单。**
-它把"我以为我的门禁很严"变成"我知道它在这 78 种改法下没反应，其中 4 类是真问题"。
+A heading is not an ID, so "the same heading appears twice" is covered by no rule. Harmless this round,
+but if any downstream tool uses headings as anchors, duplicate headings will point an anchor at the wrong
+section.
 
 ---
 
-## 未完成（我不假装的部分）
+## I do not call all 78 of these defects
 
-- 上面 4 个缺陷**一个都还没修**。这份文件是**诊断**，不是**修复记录**。
-  修完会单独出一卷，并且必须附上"修完后重跑 gatecheck，漏过从 78 降到多少"的对比。
-- 本轮基线是**我以为构造的**最小合法输入（`make_valid.py`），它只证明
-  "门禁不误杀最小合法输入"，**不能证明"门禁能验收真实项目"**。
-  真实的十来个仓库那套输入没有跑过，因为原仓库的元模型文件不全。
-- gatecheck 的变异算子只有 7 个，覆盖面有限（没有做值级别、类型级别、跨文件语义变异）。
+In fairness: **most of the 78 misses are semantically legal mutations**, for example:
 
-**以上三条都是欠账，不是免责声明。**
+- `drop-line` removing placeholders such as `- 略` — the content was meaningless to begin with;
+- `dup-id` copying an H1 heading — a heading is not an ID, so there is no conflict;
+- `empty-file` clearing a file that "only needs to exist" — the gate never intended to verify its content.
+
+Treating "the mutation was not caught" as identical to "the gate has a bug" is **passing quantity off as
+quality**. So I went through them one by one, and only the 4 kinds above are cases that genuinely should
+have been caught and were not.
+
+**Which is exactly where gatecheck's role becomes clear: it does not give you a verdict, it gives you a
+list.** It turns "I think my gate is strict" into "I know it does not react to these 78 rewrites, and 4
+kinds among them are real problems".
+
+---
+
+## Not finished (the part I do not pretend about)
+
+- **Not one of the 4 defects above has been fixed.** This file is a **diagnosis**, not a repair log.
+  The fix will be a separate volume, and it must carry a "re-run gatecheck after the fix; missed went
+  from 78 down to N" comparison.
+- The baseline this round is the minimal legal input **I constructed** (`make_valid.py`); it only proves
+  "the gate does not false-positive on a minimal legal input". **It does not prove "the gate can accept a
+  real project".** The inputs from the ten-odd real repositories have not been run, because the original
+  repository's meta-model files are incomplete.
+- gatecheck has only 7 mutation operators, so coverage is limited (no value-level, type-level, or
+  cross-file semantic mutation).
+
+**All three of the above are debts, not disclaimers.**

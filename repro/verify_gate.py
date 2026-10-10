@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""证明门禁**两个方向都能动**。
+"""Prove the gate moves in **both** directions.
 
-一个只会说"是"的门禁没有用。
-一个只会说"不"的门禁**同样**没有用 —— 你无法区分
-「严格的校验器」和「坏掉的校验器」，两者都拒绝一切输入。
+A gate that only ever says "yes" is useless.
+A gate that only ever says "no" is **equally** useless -- you cannot tell a
+strict validator from a broken one, because both reject everything.
 
-所以本脚本做两条对称断言：
+So this script makes two symmetric assertions:
 
-    ① 故意违规的输入  → 门禁必须以非零码退出，且报出 ERROR，且覆盖 ≥19 类规则
-    ② 合法的最小输入  → 门禁必须以 0 退出，且 ERROR/WARNING 均为 0
+    (1) a deliberately violating input -> the gate must exit non-zero, report
+        ERRORs, and fire at least 19 rule families
+    (2) a minimal legal input          -> the gate must exit 0, with 0 ERROR
+        and 0 WARNING
 
-任何一条不成立，本仓库关于"可验证"的主张即不成立，退出码非零。
+If either one fails, this repository's claim about verifiability fails, and the
+exit code is non-zero.
 
-用法：
+Usage:
     python repro/verify_gate.py
 """
 from __future__ import annotations
@@ -31,8 +34,9 @@ BROKEN_SRC = os.path.join(FIX, "broken-source")
 VALID = os.path.join(FIX, "valid-meta-model")
 VALID_SRC = os.path.join(FIX, "valid-source")
 
-# 这份 fixture 是照着规则逐条设计成违规的。
-# 低于这个数说明校验器漏了规则类别，不是 fixture 不够坏。
+# This fixture is designed rule by rule to violate the spec.
+# Below this number the validator is missing rule families -- it is not that the
+# fixture is insufficiently broken.
 MIN_RULE_KINDS = 19
 
 
@@ -52,56 +56,56 @@ def counts(out: str) -> tuple[int, int]:
 
 def main() -> int:
     print("=" * 64)
-    print("门禁体检：它必须既能说不，也能说是")
+    print("gate health check: it must be able to say no, and to say yes")
     print("=" * 64)
 
     ok = True
 
-    # ── 方向 ①：该拒绝的必须拒绝
-    print("\n[1/2] 故意违规的输入 —— 门禁必须说不")
+    # -- direction (1): what should be rejected must be rejected
+    print("\n[1/2] a deliberately violating input -- the gate must say no")
     rc, out = run(BROKEN, BROKEN_SRC)
     err, warn = counts(out)
     kinds = sorted({m.group(1) for m in re.finditer(r"^\|\s*ERROR\s*\|\s*([a-z][a-z0-9-]+)\s*\|", out, re.M)})
-    print(f"      退出码={rc}  ERROR={err}  WARNING={warn}  命中规则类别={len(kinds)}")
+    print(f"      exit code={rc}  ERROR={err}  WARNING={warn}  rule families fired={len(kinds)}")
 
     if rc == 0:
-        print("      ❌ 门禁对违规输入返回 0 —— 它不会说不")
+        print("      FAIL the gate returned 0 on a violating input -- it will not say no")
         ok = False
     else:
-        print("      ✅ 以非零码退出")
+        print("      ok   exited non-zero")
     if err <= 0:
-        print("      ❌ 没有报出任何 ERROR")
+        print("      FAIL no ERROR was reported")
         ok = False
     else:
-        print("      ✅ 报出 ERROR")
+        print("      ok   reported ERROR")
     if len(kinds) < MIN_RULE_KINDS:
-        print(f"      ❌ 规则覆盖不足：{len(kinds)} < {MIN_RULE_KINDS}")
+        print(f"      FAIL insufficient rule coverage: {len(kinds)} < {MIN_RULE_KINDS}")
         ok = False
     else:
-        print(f"      ✅ 规则覆盖 ≥{MIN_RULE_KINDS} 类")
+        print(f"      ok   coverage of at least {MIN_RULE_KINDS} rule families")
 
-    # ── 方向 ②：该通过的必须通过
-    print("\n[2/2] 合法的最小输入 —— 门禁必须说是（不误杀）")
+    # -- direction (2): what should pass must pass
+    print("\n[2/2] a minimal legal input -- the gate must say yes (no false positives)")
     rc2, out2 = run(VALID, VALID_SRC)
     err2, warn2 = counts(out2)
-    print(f"      退出码={rc2}  ERROR={err2}  WARNING={warn2}")
+    print(f"      exit code={rc2}  ERROR={err2}  WARNING={warn2}")
 
     if rc2 != 0 or err2 != 0 or warn2 != 0:
-        print("      ❌ 门禁拒绝了合法输入 —— 它只会说不，等于坏掉（或 fixture 不再合法）")
+        print("      FAIL the gate rejected a legal input -- it only says no, which means it is broken (or the fixture is no longer legal)")
         for line in out2.splitlines():
             if "| ERROR" in line or "| WARNING" in line:
                 print("        ", line[:150])
-        print("      提示：可跑 `python repro/fixtures/make_valid.py` 重建合法基线。")
+        print("      hint: run `python repro/fixtures/make_valid.py` to rebuild the legal baseline.")
         ok = False
     else:
-        print("      ✅ 合法输入 0 ERROR / 0 WARNING 通过")
+        print("      ok   legal input passes with 0 ERROR / 0 WARNING")
 
     print("\n" + "=" * 64)
     if ok:
-        print("门禁能说不、也能说是 —— 两条对称证据都在，主张成立。")
-        print("（注意：这仍不等于'门禁正确'。它只等于'在这两组输入下行为正确'。）")
+        print("The gate can say no and can say yes -- both symmetric pieces of evidence are present, so the claim holds.")
+        print('(Note: that is still not "the gate is correct". It only means "it behaves correctly on these two inputs".)')
         return 0
-    print("门禁体检未通过 —— 本仓库关于验证的主张不成立。")
+    print("The gate health check failed -- this repository's claim about verification does not hold.")
     return 1
 
 

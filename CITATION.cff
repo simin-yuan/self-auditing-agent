@@ -13,8 +13,8 @@ abstract: >-
   A public audit log of one AI agent performing real work: every conclusion, the
   command that produced it, the mistakes the agent made, and how a third party can
   reproduce the result. Volume 1 covers a 74-minute forensic audit of an unfamiliar
-  11-repo, 1768-file technical system, including one adversarial finding, four bugs
-  the agent found in its own work, one false positive, and one false discovery it
+  third-party technical system, including one adversarial finding, four bugs the
+  agent found in its own work, one false positive, and one false discovery it
   caught itself. Two commands in repro/ reproduce the headline finding and prove the
   validation gate actually emits negative verdicts.
 keywords:

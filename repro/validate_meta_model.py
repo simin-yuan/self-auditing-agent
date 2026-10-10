@@ -1,48 +1,49 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""元模型文档集对账校验（PowerShell 版的 Python 完整移植）
+"""Meta-model document-set reconciliation (a full Python port of a PowerShell original)
 
-## 出处
-逐行移植自 `codebase-reverse/scripts/validate_meta_model.ps1`（416 行，原文全读）。
-无需 PowerShell，跨平台可跑；规则**一条不减**。
+## Origin
+Ported line by line from the original system's 416-line PowerShell validator (read in
+full). Runs cross-platform with no PowerShell installed, and **not one rule was dropped**.
 
-## 移植的规则清单（与原脚本的 issue type 一一对应）
+## The ported rules (one-to-one with the original's issue types)
 
-| 原 issue type                   | 严重级 | 说明 |
-|--------------------------------|--------|------|
-| missing-file                   | ERROR  | 25 份必需文档缺一即错（`--allow-missing-optional` 时 consistency-report.md 降为 WARNING） |
-| missing-source-path            | ERROR  | 未提供 `--source` 时无法校验完整性（`--allow-missing-optional` 降 WARNING） |
-| invalid-source-path            | ERROR  | source 目录不存在 |
-| definition-in-wrong-file       | ERROR  | ID 主定义必须落在该类 ID 的指定文件里（23 类前缀映射） |
-| duplicate-definition           | ERROR  | 同一 ID 有多个主定义 |
-| undefined-id                   | ERROR  | 被引用但从未定义 |
-| dead-link                      | ERROR  | Markdown 链接目标不存在 |
-| dead-anchor                    | ERROR  | 链接锚点在目标文件中不存在 |
-| missing-requirement-panel      | ERROR  | 功能无需求面板 |
-| missing-function-chain         | ERROR  | 功能无实现链 |
-| orphan-requirement-panel       | ERROR  | 需求面板无对应功能定义 |
-| orphan-function-chain          | ERROR  | 实现链无对应功能定义 |
-| incomplete-requirement-panel   | ERROR  | 需求面板缺 12 个必填字段之一 |
-| incomplete-function-chain      | ERROR  | 实现链缺 8 个必备 ### 小节之一 |
-| missing-non-menu-index         | ERROR  | 非交互功能未登记进 non-menu-function-index.md |
-| orphan-non-menu-function       | ERROR  | 非菜单功能未在 functional-inventory.md 定义 |
-| missing-trigger-type           | ERROR  | 非菜单功能未声明可识别的触发类型 |
-| missing-trigger-entry          | ERROR  | 非菜单功能未引用 JOB/EVENT/API/ENTRY 触发入口 |
-| missing-table-schema           | ERROR  | 物理表无 schema 章节 |
-| orphan-table-schema            | ERROR  | schema 章节无 database-model 定义 |
-| missing-field-table            | ERROR  | schema 章节缺字段表（`| Physical Column |` 或 `| 物理字段 |`） |
-| unregistered-source-asset      | ERROR  | 入口/DAO/模型类源文件未登记进台账 |
-| unregistered-source-entry      | ERROR  | 请求路由字面量未登记进台账 |
-| unregistered-source-trigger    | ERROR  | Job/事件监听字面量未登记进台账 |
-| unregistered-database-object   | ERROR  | DDL 对象名未登记进台账 |
+| Issue type                     | Severity | Meaning |
+|--------------------------------|----------|---------|
+| missing-file                   | ERROR    | any of the 25 required documents missing is an error (with `--allow-missing-optional`, consistency-report.md drops to WARNING) |
+| missing-source-path            | ERROR    | completeness cannot be validated without `--source` (WARNING with `--allow-missing-optional`) |
+| invalid-source-path            | ERROR    | the source directory does not exist |
+| definition-in-wrong-file       | ERROR    | an ID's primary definition must live in the file designated for that ID class (23 prefix mappings) |
+| duplicate-definition           | ERROR    | one ID has more than one primary definition |
+| undefined-id                   | ERROR    | referenced but never defined |
+| dead-link                      | ERROR    | the Markdown link target does not exist |
+| dead-anchor                    | ERROR    | the link anchor does not exist in the target file |
+| missing-requirement-panel      | ERROR    | a function has no requirement panel |
+| missing-function-chain         | ERROR    | a function has no implementation chain |
+| orphan-requirement-panel       | ERROR    | a requirement panel has no matching function definition |
+| orphan-function-chain          | ERROR    | an implementation chain has no matching function definition |
+| incomplete-requirement-panel   | ERROR    | the requirement panel is missing one of its 12 required fields |
+| incomplete-function-chain      | ERROR    | the implementation chain is missing one of its 8 required ### sections |
+| missing-non-menu-index         | ERROR    | a non-interactive function is not registered in non-menu-function-index.md |
+| orphan-non-menu-function       | ERROR    | a non-menu function is not defined in functional-inventory.md |
+| missing-trigger-type           | ERROR    | a non-menu function declares no recognizable trigger type |
+| missing-trigger-entry          | ERROR    | a non-menu function references no JOB/EVENT/API/ENTRY trigger |
+| missing-table-schema           | ERROR    | a physical table has no schema section |
+| orphan-table-schema            | ERROR    | a schema section has no database-model definition |
+| missing-field-table            | ERROR    | a schema section is missing its field table (an English or Chinese column header is accepted) |
+| unregistered-source-asset      | ERROR    | an entry/DAO/model source file is absent from the inventory |
+| unregistered-source-entry      | ERROR    | a request-route literal is absent from the inventory |
+| unregistered-source-trigger    | ERROR    | a job/event-listener literal is absent from the inventory |
+| unregistered-database-object   | ERROR    | a DDL object name is absent from the inventory |
 
-**⚠️ 极限（原脚本作者自己也承认）**：这是**字符串存在性检查，不是语义校验**。
-它挡不住「台账里编条目」，也不校验语义正确性。**不要对客户宣称「完整逆向」。**
+**Limit (the original's own author admits this too):** this is a **string existence check,
+not a semantic check**. It cannot catch fabricated inventory entries and it does not verify
+semantic correctness. **Never claim “complete reverse-engineering” on the strength of it.**
 
-用法：
-    python validators/validate_meta_model.py <meta-model目录> [--source <源码目录>] \\
+Usage:
+    python validators/validate_meta_model.py <meta-model-dir> [--source <source-dir>] \\
            [--report out/consistency-report.md] [--allow-missing-optional] [--json]
-退出码：ERROR>0 → 1，否则 0
+Exit code: ERROR>0 -> 1, otherwise 0
 """
 from __future__ import annotations
 
@@ -54,7 +55,7 @@ import sys
 from collections import defaultdict
 from typing import Any
 
-# ── 原脚本 $requiredFiles ──
+# -- the original's $requiredFiles --
 REQUIRED_FILES = [
     "meta-index.md", "PROGRESS.md", "source-asset-inventory.md",
     "source-coverage-report.md", "technical-architecture.md",
@@ -67,12 +68,12 @@ REQUIRED_FILES = [
     "config-index.md", "change-hotspots.md", "consistency-report.md",
 ]
 
-# ── 原脚本 $idPattern ──
+# -- the original's $idPattern --
 ID_PATTERN = (r"(?:SYS|MOD|SVC|DOM|CAP|SCN|MENU|ENTRY|FUNC|OBJ|API|EVENT|JOB|COMP|TCAP|"
               r"COMMON|CAPI|TBL|STORE|TOPIC|CFG|RULE|Q)-[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?")
 ID_RE = re.compile(ID_PATTERN)
 
-# ── 原脚本 $primaryFilesByPrefix ──
+# -- the original's $primaryFilesByPrefix --
 PRIMARY_FILES_BY_PREFIX = {
     "SYS": ["technical-architecture.md"],
     "MOD": ["module-index.md"], "SVC": ["module-index.md"],
@@ -114,7 +115,7 @@ def add(severity: str, itype: str, target: str, message: str) -> None:
     ISSUES.append({"severity": severity, "type": itype, "target": target, "message": message})
 
 
-# ── 原脚本 Get-MarkdownAnchors ──
+# -- the original's Get-MarkdownAnchors --
 def md_anchors(content: str) -> set[str]:
     anchors: set[str] = set()
     for m in re.finditer(r'(?i)<a\s+(?:name|id)=["\']([^"\']+)["\']', content):
@@ -139,7 +140,7 @@ def read(path: str) -> str:
 
 
 def sections_of(content: str, id_pattern: str) -> list[tuple[str, str]]:
-    """把文档按 `## ID-xxx` 切成 (id, body)。等价于原脚本的正则捕获。"""
+    """Split a document into (id, body) pairs at `## ID-xxx`. Same capture as the original."""
     rx = re.compile(rf"(?ms)^#{{2,6}}\s+({id_pattern})[^\r\n]*\r?\n(.*?)(?=^#{{2,6}}\s+{id_pattern}|\Z)")
     return [(m.group(1), m.group(2)) for m in rx.finditer(content)]
 
@@ -190,7 +191,7 @@ def check_ids_and_links(root: str) -> tuple[dict[str, list[str]], int]:
             basename = rel.split("/")[-1]
             if not allowed or basename not in allowed:
                 add("ERROR", "definition-in-wrong-file", ident,
-                    f"Primary definition is in {rel}; expected one of: {', '.join(allowed or ['<未知前缀>'])}.")
+                    f"Primary definition is in {rel}; expected one of: {', '.join(allowed or ['<unknown prefix>'])}.")
                 continue
             definitions[ident].append(rel)
 
@@ -419,7 +420,7 @@ def main() -> int:
 
     root = os.path.abspath(args.meta_model)
     if not os.path.isdir(root):
-        print(f"[错误] 元模型目录不存在: {root}")
+        print(f"[error] meta-model directory does not exist: {root}")
         return 2
     source_root = os.path.abspath(args.source) if args.source else None
     given = args.source is not None

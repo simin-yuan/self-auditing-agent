@@ -50,6 +50,8 @@ reviews closely; they do it in a hurry, and CI is green either way.
                                                    strict mode: missing type "number" for keyword "minimum" at "#/properties/timeout" (strictTypes)
 ```
 
+![the same three steps on three validators -- the deleted line is invisible in every exit code](img/one-line-deleted.png)
+
 ajv is the only one of the three that *knew*. It said so — on stderr, in a warning
 nobody reads — and returned success. In CI, exit code is the only channel that is
 actually watched.

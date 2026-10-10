@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gatecheck"
 version = "1.0.0"
-description = "你的门禁真的会拦吗？自动变异输入，逐个撞你的校验器，报告它漏在哪。"
+description = "Does your gate actually reject anything? Mutates the input, drives every variant at your validator, and reports what it misses."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -18,8 +18,9 @@ classifiers = [
   "Topic :: Software Development :: Quality Assurance",
   "Topic :: Software Development :: Testing",
 ]
-# 唯一的依赖就是 Python 标准库 —— 这是有意的：
-# 一个要求别人先装一堆东西的质量工具，不会被用在关键路径上。
+# The only dependency is the Python standard library, and that is deliberate:
+# a quality tool that makes people install a pile of things first will not end up
+# on anybody's critical path.
 dependencies = []
 
 [project.scripts]

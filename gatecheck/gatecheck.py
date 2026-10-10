@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""gatecheck —— 你的门禁真的会拦吗？
+"""gatecheck -- does your gate actually reject anything?
 
-第一性原理：
-    一个校验器/门禁/linter/测试套件，最常见的失败不是"有 bug"，
-    而是 **它从来没拦过任何东西，却让所有人以为有它兜底**。
-    你以为 CI 绿是因为代码干净；也可能是因为那条检查根本没生效。
+First principles:
+    The most common way a validator, a gate, a linter or a test suite fails is
+    not "it has a bug". It is that **it never rejected anything, while everyone
+    assumed it was covering them**. CI is green because your code is clean -- or
+    because that check never ran at all.
 
-    要证明一个门禁有效，唯一的方法不是看它通过，
-    而是 **给它一份必须被拒绝的输入，看它敢不敢说不**。
+    The only way to show a gate works is not to watch it pass, but to **hand it
+    an input that must be rejected and see whether it dares say no.**
 
-    gatecheck 把这件事自动化：它对你的输入做 N 种变异，
-    每个变异单独跑一次你的门禁，如实报告哪些变异被拦住了、哪些漏了。
+    gatecheck automates that: it produces N mutations of your input, runs your
+    gate once per mutation, and reports honestly which mutations were caught and
+    which slipped through.
 
-    它不替你判断"漏掉的是不是真盲区"——它只把你从
-    "我以为我的门禁很严" 变成 "我知道它漏了这 8 种情况"。
+    It does not decide for you whether a survivor is a real blind spot. It only
+    moves you from "I think my gate is strict" to "I know it missed these 8
+    cases".
 
-用法：
+Usage:
     gatecheck --gate "python validate.py {target}" --target ./data
     gatecheck --gate "pytest -q {target}" --target ./fixtures --workdir . --workers 4
 
-退出码：
-    0 = 所有变异都被拦住（门禁无可见盲区）
-    1 = 存在未被拦住的变异（全部写入 --report 供人复查）
-    2 = 用法/环境错误
+Exit codes:
+    0 = every mutation was caught (no visible blind spot in the gate)
+    1 = some mutations were not caught (all of them written to --report for review)
+    2 = usage or environment error
 """
 from __future__ import annotations
 
@@ -41,22 +44,22 @@ from pathlib import Path
 
 __version__ = "1.0.0"
 
-# 只对文本文件做变异；这些扩展名之外的跳过。
+# Only text files are mutated; anything with another extension is skipped.
 TEXT_EXT = {
     ".md", ".markdown", ".txt", ".yaml", ".yml", ".json", ".toml", ".ini", ".cfg",
     ".csv", ".tsv", ".sql", ".py", ".js", ".ts", ".java", ".kt", ".go", ".rs",
     ".c", ".h", ".cpp", ".cs", ".rb", ".php", ".sh", ".xml", ".html", ".properties",
 }
 
-# 二进制/体积护栏
+# Binary / size guard
 MAX_FILE_BYTES = 512 * 1024
 
 
 # --------------------------------------------------------------------------
-# 变异算子：每个算子接收"一份文件列表 -> {相对路径: 文本}"，产出一批变异体。
-# 每个变异体是一个 {相对路径: 新文本} 的完整快照（相对 base 的覆盖）。
-# 算子的设计原则：**它产出的输入应当是"明显有问题"的**——
-# 如果门禁对此毫无反应，那就值得人看一眼。
+# Mutation operators: each takes "a file list -> {relpath: text}" and yields
+# mutants. A mutant is a complete snapshot (a {relpath: new text} overlay on the
+# baseline). The design rule for an operator: **the input it produces should be
+# obviously wrong** -- if the gate has no reaction to it, that is worth a look.
 # --------------------------------------------------------------------------
 
 def _lines(text: str) -> list[str]:
@@ -68,20 +71,20 @@ def _join(lines) -> str:
 
 
 def op_drop_file(files: dict[str, str]):
-    """删掉整个文件。绝大多数门禁应当立刻报错。"""
+    """Delete a whole file. Almost every gate should error out immediately."""
     for rel in sorted(files):
-        yield (f"drop-file:{rel}", {rel: None})  # None = 删除
+        yield (f"drop-file:{rel}", {rel: None})  # None = delete
 
 
 def op_empty_file(files: dict[str, str]):
-    """把文件清空。"""
+    """Empty a file."""
     for rel, txt in sorted(files.items()):
         if txt.strip():
             yield (f"empty-file:{rel}", {rel: ""})
 
 
 def op_drop_section(files: dict[str, str]):
-    """删掉一个 markdown '## ' 段 / YAML-INI 的一个顶层键块。"""
+    """Delete one markdown '## ' section / one top-level YAML-INI key block."""
     for rel, txt in sorted(files.items()):
         lines = _lines(txt)
         heads = [i for i, l in enumerate(lines)
@@ -92,13 +95,13 @@ def op_drop_section(files: dict[str, str]):
                 re.match(r"^#{1,3}\s+\S", lines[j]) or re.match(r"^[A-Za-z_][\w.\-]*\s*:", lines[j])
             ):
                 j += 1
-            if j - i >= 2:  # 至少有个键+值才算一个块
+            if j - i >= 2:  # a key plus a value is the minimum for a block
                 yield (f"drop-section:{rel}#{_snippet(lines[i])}",
                        {rel: _join(lines[:i] + lines[j:])})
 
 
 def op_drop_line(files: dict[str, str]):
-    """逐行删除（只删非空行，避免全是无意义的删空行）。"""
+    """Delete one line at a time (non-blank lines only, to avoid meaningless hits)."""
     for rel, txt in sorted(files.items()):
         lines = _lines(txt)
         for i, l in enumerate(lines):
@@ -108,7 +111,7 @@ def op_drop_line(files: dict[str, str]):
 
 
 def op_blank_value(files: dict[str, str]):
-    """把 `key: value` 的值清空，制造"字段在但没填"。"""
+    """Blank out a `key: value` value, producing "the field is there but empty"."""
     for rel, txt in sorted(files.items()):
         lines = _lines(txt)
         for i, l in enumerate(lines):
@@ -119,8 +122,9 @@ def op_blank_value(files: dict[str, str]):
 
 
 def op_break_reference(files: dict[str, str]):
-    """把标识符改掉一个字符，制造悬空引用/未定义 id。
-    这是最容易漏的一类：引用关系断了但语法完全合法。"""
+    """Change one character of an identifier, producing a dangling reference or
+    an undefined id. This is the easiest kind to miss: the relationship is gone
+    but the syntax is perfectly legal."""
     for rel, txt in sorted(files.items()):
         for m in re.finditer(r"\b([A-Z][A-Z0-9]*(?:[-_][A-Z0-9]+)+)\b", txt):
             tok = m.group(1)
@@ -132,7 +136,7 @@ def op_break_reference(files: dict[str, str]):
 
 
 def op_dup_id(files: dict[str, str]):
-    """把第一个 id 复制一份，制造重复定义。"""
+    """Copy the first id, producing a duplicate definition."""
     for rel, txt in sorted(files.items()):
         m = re.search(r"^#{1,3}\s+(\S+)", txt, re.M)
         if m:
@@ -188,7 +192,7 @@ def build_mutants(base: dict[str, str], limit: int | None) -> list[tuple[str, di
 
 
 def apply_mutant(base_dir: Path, work: Path, patch: dict) -> None:
-    """把 baseline 复制到 work，再套上 patch。patch 里值为 None 表示删除文件。"""
+    """Copy the baseline into work, then apply the patch. A value of None deletes."""
     if work.exists():
         shutil.rmtree(work)
     shutil.copytree(base_dir, work)
@@ -209,66 +213,67 @@ def run_gate(gate: str, target: Path, workdir: Path, timeout: int):
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         return r.returncode, (r.stdout or "") + (r.stderr or "")
     except subprocess.TimeoutExpired:
-        return -9, f"[gatecheck] 门禁超时（{timeout}s）"
+        return -9, f"[gatecheck] gate timed out ({timeout}s)"
     except OSError as e:
-        return -1, f"[gatecheck] 门禁无法启动：{e}"
+        return -1, f"[gatecheck] the gate could not start: {e}"
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         prog="gatecheck",
-        description="你的门禁真的会拦吗？自动变异输入，逐条撞门禁，报告它漏在哪。",
+        description="Does your gate actually reject anything? Mutates the input, drives every variant at the gate, reports what it misses.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="示例：\n"
+        epilog="Examples:\n"
                "  gatecheck --gate \"python validate.py {target}\" --target ./data\n"
                "  gatecheck --gate \"pytest -q {target}\" --target ./fixtures --timeout 60\n")
     ap.add_argument("--gate", required=True,
-                    help="你的门禁命令。用 {target} 占位变异后的输入路径。")
-    ap.add_argument("--target", required=True, help="基线输入目录（必须是通过门禁的）。")
-    ap.add_argument("--workdir", default=".", help="跑门禁时的工作目录（默认当前目录）。")
-    ap.add_argument("--timeout", type=int, default=120, help="每次门禁运行的超时秒数。")
-    ap.add_argument("--workers", type=int, default=4, help="并行度（默认 4）。")
-    ap.add_argument("--limit", type=int, default=None, help="最多生成多少个变异（调试用）。")
-    ap.add_argument("--report", default="gatecheck-report.json", help="报告输出路径。")
-    ap.add_argument("--keep", action="store_true", help="保留未被拦住的变异体供人工复查。")
+                    help="your gate command; use {target} as the placeholder for the mutated input path")
+    ap.add_argument("--target", required=True, help="baseline input directory (must already pass the gate)")
+    ap.add_argument("--workdir", default=".", help="working directory the gate runs in (default: current)")
+    ap.add_argument("--timeout", type=int, default=120, help="timeout in seconds for each gate run")
+    ap.add_argument("--workers", type=int, default=4, help="parallelism (default 4)")
+    ap.add_argument("--limit", type=int, default=None, help="maximum number of mutants to build (for debugging)")
+    ap.add_argument("--report", default="gatecheck-report.json", help="where to write the report")
+    ap.add_argument("--keep", action="store_true", help="keep the surviving mutants on disk for manual review")
     ap.add_argument("--version", action="version", version=f"gatecheck {__version__}")
     a = ap.parse_args(argv)
 
     target = Path(a.target).resolve()
     if not target.is_dir():
-        print(f"[错误] --target 不是目录：{target}", file=sys.stderr)
+        print(f"[error] --target is not a directory: {target}", file=sys.stderr)
         return 2
 
     base = collect(target)
     if not base:
-        print(f"[错误] {target} 下没有可变异文本文件", file=sys.stderr)
+        print(f"[error] no mutable text files under {target}", file=sys.stderr)
         return 2
 
     print("=" * 70)
-    print("gatecheck —— 你的门禁真的会拦吗？")
+    print("gatecheck -- does your gate actually reject anything?")
     print("=" * 70)
-    print(f"基线输入 : {target}  ({len(base)} 个文件)")
+    print(f"baseline input : {target}  ({len(base)} files)")
 
-    # 步骤 0：先确认基线本身是"通过"的。基线都过不了的检查没有意义。
+    # Step 0: confirm the baseline itself passes. A check that cannot pass a clean
+    # input cannot measure anything.
     with tempfile.TemporaryDirectory(prefix="gatecheck-") as tmp:
         tmpd = Path(tmp)
         dummy = tmpd / "baseline-input"
         apply_mutant(target, dummy, {})
         rc0, out0 = run_gate(a.gate, dummy, Path(a.workdir).resolve(), a.timeout)
-    print(f"基线判定 : 退出码 {rc0}  "
-          f"{'✅ 通过（基线干净，可以开始变异）' if rc0 == 0 else '⚠️ 基线就没过 —— 下面的结果不可信'}")
+    print(f"baseline       : exit code {rc0}  "
+          f"{'PASS (baseline is clean, starting the run)' if rc0 == 0 else 'WARN the baseline did not pass -- the results below are not trustworthy'}")
     if rc0 != 0:
-        print("\n  基线输出前 400 字：")
+        print("\n  first 400 characters of baseline output:")
         for l in out0.splitlines()[:12]:
             print("   ", l[:160])
-        print("\n  提示：一个连干净输入都拒绝的门禁，测不出东西。先把它调到基线通过。")
+        print("\n  Note: a gate that refuses even a clean input measures nothing. Get it passing first.")
 
     mutants = build_mutants(base, a.limit)
     if not mutants:
-        print("[错误] 没有生成任何变异 —— 输入结构可能太简单。", file=sys.stderr)
+        print("[error] no mutants were generated -- the input structure is probably too simple.", file=sys.stderr)
         return 2
-    print(f"变异总数 : {len(mutants)}")
-    print(f"门禁命令 : {a.gate}\n")
+    print(f"mutants        : {len(mutants)}")
+    print(f"gate command   : {a.gate}\n")
     print("-" * 70)
 
     caught, missed, errors = [], [], []
@@ -280,7 +285,7 @@ def main(argv=None) -> int:
             apply_mutant(target, wd, patch)
             rc, out = run_gate(a.gate, wd, Path(a.workdir).resolve(), a.timeout)
             return (name, rc, out, patch)
-        except Exception as e:  # 变异体自身构造失败不该让整轮挂掉
+        except Exception as e:  # a broken mutant must not take down the whole run
             return (name, None, str(e), patch)
 
     with tempfile.TemporaryDirectory(prefix="gatecheck-mut-") as tmpm:
@@ -289,26 +294,26 @@ def main(argv=None) -> int:
             for name, rc, out, patch in ex.map(one, mutants):
                 if rc is None:
                     errors.append((name, out))
-                    tag = "构建失败"
+                    tag = "build error"
                 elif rc != 0:
                     caught.append((name, rc, out))
-                    tag = "拦住 ✔"
+                    tag = "caught OK"
                 else:
                     missed.append((name, out))
-                    tag = "★ 漏过"
-                print(f"  {tag:>8}  {name}")
+                    tag = "★ MISSED"
+                print(f"  {tag:>11}  {name}")
 
     total = len(caught) + len(missed)
     print("-" * 70)
-    print(f"拦住 {len(caught)} / {total}"
-          + (f"   构建失败 {len(errors)}" if errors else ""))
+    print(f"caught {len(caught)} / {total}"
+          + (f"   build errors {len(errors)}" if errors else ""))
 
     if missed:
-        print(f"\n未被拦住的变异（{len(missed)} 个）—— 这些就是你门禁的可见盲区：")
+        print(f"\nMutations that were not caught ({len(missed)}) -- these are the gate's visible blind spots:")
         for name, _ in missed:
             print(f"  ★  {name}")
-        print("\n  注意：并非每个漏过都等于缺陷 —— 有些变异在语义上是合法的。")
-        print("  但每一行都值得你回答一句：这种情况发生了，我的门禁为什么不管？")
+        print("\n  Note: not every survivor is a defect -- some mutations are semantically legal.")
+        print("  But every line deserves an answer: when this happened, why did my gate do nothing?")
 
     report = {
         "gatecheck_version": __version__,
@@ -324,7 +329,7 @@ def main(argv=None) -> int:
         "missed_detail": [{"mutant": n, "gate_output_head": o[:600]} for n, o in missed],
     }
     Path(a.report).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\n报告已写入：{a.report}")
+    print(f"\nreport written to: {a.report}")
 
     if a.keep and missed:
         keepdir = Path("gatecheck-missed")
@@ -333,17 +338,17 @@ def main(argv=None) -> int:
         for n, _ in missed:
             d = keepdir / re.sub(r"[^A-Za-z0-9_.-]+", "_", n)[:80]
             apply_mutant(target, d, by_name[n])
-        print(f"漏过的变异体已保留在：{keepdir}/")
+        print(f"surviving mutants kept in: {keepdir}/")
 
     print("=" * 70)
     if rc0 != 0:
-        print("结论：基线没过，本轮结果不能作为门禁有效性的证据。")
+        print("Verdict: the baseline did not pass, so this run is not evidence about the gate.")
         return 1
     if missed:
-        print(f"结论：门禁对 {len(missed)}/{total} 个变异无反应 —— 它有可见盲区。")
+        print(f"Verdict: the gate had no reaction to {len(missed)}/{total} mutations -- it has visible blind spots.")
         return 1
-    print(f"结论：{total} 个变异全部被拦住 —— 这轮没找到盲区。")
-    print("      （这仍不等于'门禁正确'，只等于'在这组变异下它都说不'。）")
+    print(f"Verdict: all {total} mutations were caught -- no blind spot found in this run.")
+    print("         (Still not the same as 'the gate is correct' -- only that it said no to all of these.)")
     print("=" * 70)
     return 0
 
