@@ -2,11 +2,11 @@ __pycache__/
 *.pyc
 .venv/
 
-# gatecheck 的产物：报告与保留的漏过变异体
+# gatecheck artifacts: the report and the missed mutants kept for review
 gatecheck-report.json
 gatecheck-missed/
 
-# 打包产物（pip install 会产生）
+# packaging artifacts (produced by pip install)
 __pycache__/
 *.egg-info/
 build/

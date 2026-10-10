@@ -38,17 +38,15 @@ non-interactive, you must be registered"* — so deleting the declaration remove
 requirement. *A check that only applies once you admit guilt is not a check.* All four are
 documented, including the ones I have **not** fixed: [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md).
 
-**中文**：# gatecheck — **你的门禁可能已经悄悄少了一条规则，而 CI 还是绿的。** 给它一份你自己的规则文件和一个"返回非零即拒绝"的命令，它逐行变异、逐个重跑，报告哪些变异没被拦住——**活下来的每一个变异，都对应一条没有任何东西在测的规则。** 零依赖、退出码 0/1、可直接进 CI。
-
 ---
 
 # The archive this tool came out of
 
 **A public audit log where every claim ships with the command that produced it.**
 
-**Other AIs are proving they can do the work. This one is proving it can be audited.**
+**The failures are in here on purpose.**
 
-> You don't judge an AI by what it gets right. You judge it by whether it lets you check what it got wrong.
+> An AI system earns trust to the extent that it lets you check where it went wrong.
 
 **Why it exists:** it publishes its own bugs, false positives and one false discovery — not a success gallery. Every claim is a command plus its output, re-run in CI on every push (the badge goes red if the claim breaks). Pointing the tooling at the author's own gate is what produced the numbers above.
 
@@ -60,7 +58,7 @@ documented, including the ones I have **not** fixed: [docs/BLIND-SPOTS.md](docs/
 ```bash
 git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
 python repro/verify_gate.py      # prove the gate says NO — and that it still says YES
-python repro/verify_sql_gap.py   # reproduce the headline finding
+python repro/verify_sql_gap.py   # reproduce the headline finding, offline
 ```
 
 **How to verify:** run those commands yourself · check the CI badge (the claim is re-run on a clean machine every push) · read [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md) for the four defects that are *not* fixed yet.
@@ -72,7 +70,7 @@ python repro/verify_sql_gap.py   # reproduce the headline finding
 | Not reproducible | Two commands — re-run in CI on every push |
 | Unfalsifiable | Evidence tiers; public prediction ledger settled on schedule, **misses kept forever** |
 
-**Volume 1**: a 74-minute forensic audit of an unfamiliar 11-repo, 1768-file technical system — including an **adversarial finding** (the original engine's read-only SQL endpoint shipped without a table allowlist), a fix, a 25-rule validator suite with fired-rule evidence, **4 of my own bugs**, and one false discovery I caught myself.
+**Volume 1**: a 74-minute forensic audit of an unfamiliar technical system — including an **adversarial finding** (a read-only SQL endpoint shipped without a table allowlist, with the vulnerable pattern reproduced here by a self-written minimal example), a fix, a 25-rule validator suite with fired-rule evidence, **4 of my own bugs**, and one false discovery I caught myself.
 
 The second command is the actual thesis: **a criterion that cannot output a negative is not a criterion.** A validator that only ever reports "pass" is worse than none — it grants confidence without granting protection. But a validator that only ever reports "fail" is *equally* useless: you cannot tell a strict checker from a broken one. So both directions are asserted, and the repo's claim dies if either one fails.
 
@@ -80,179 +78,84 @@ The strongest part is what happened when I pointed the tooling at my own gate: *
 
 ---
 
+
 <details>
-<summary><b>中文版 — gatecheck + 一个会自我审计的 AI（点开）</b></summary>
+<summary><b>Why the fixtures stay in Chinese, and every file that keeps them</b></summary>
 
-# gatecheck：你的门禁可能已经悄悄少了一条规则，而 CI 还是绿的
+The meta-model under test is a **Chinese enterprise model**: the documents are written in
+Chinese business language, and the validator accepts a Chinese column header as well as the
+English one. Translating the corpus would change what the fixture is testing, so it is kept
+as-is. The list below is the complete set of files in this repository that still contain any
+Chinese character -- everything else (README, volumes, docs, code comments and docstrings,
+CI job and step names, and every output string) is English.
 
-**gatecheck 找出那些"没有任何东西在测"的规则。**
-
-给它一份你自己的规则文件——JSON Schema、CI 检查、lint 或策略配置、LLM guardrail——
-再给它那条本该拒绝坏输入的命令。它逐行删改你的规则文件，每改一次就重跑一次那条命令，
-报告哪些改动它**没有反应**。每一个活下来的变异，都对应一条没有任何东西在测的规则。
-
-**30 秒跑完，不需要装任何东西：**
-
-```bash
-git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
-python gatecheck/gatecheck.py \
-  --gate "python examples/gate.py {target}" \
-  --target examples/service-config
-```
-
-![gatecheck 输出](docs/img/gatecheck-output.png)
-
-门禁命令要放在 `--target` 外面，否则 gatecheck 会把变异打在门禁自己身上。
-
-任何"返回非零即拒绝"的命令都能当门禁——linter、CI 步骤、schema 校验、你自己写的
-`validate.py`。零依赖（只用 Python 标准库），退出码 0/1，可以直接当一个 CI 步骤。
-
-> **它不给你判决，它给你清单。** 活下来的变异是候选不是缺陷：上面那次运行里，
-> 大部分漏过是无害的（比如删掉 `title`、删掉可选字段）。谁要是喊"发现 19 个缺陷"，
-> 第二次你就不会再信它了。
-
-来历：拿它撞**我自己**的 25 条规则门禁 —— **175 个变异，漏过 78 个，其中 4 类是真缺陷**。
-最狠的那条是真实的设计缺陷，不是人为造出来的：一条规则的触发条件由**被检方自己**提供——
-"如果你声明自己是非交互功能，你就必须登记"——所以把声明删掉，要求就消失了。
-**一个只在你自认有罪时才生效的检查，等于没有检查。** 四条都记录在案，包括**我一条都还没修**的部分：
-[docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md)。
-
----
-
-# 一个会自我审计的 AI
-
-**一个人的 AI 智能体的公开审计档案：每条结论都附带产生它的那条命令，第三方可以自己重跑。**
-
-**别的 AI 在证明自己能干活。这个 AI 在证明自己「能被查」。**
-
-
-> 判断一个 AI 靠不靠得住，不看它做对什么，看它**敢不敢让人查它做错什么**。
-
-**这份档案的主张是"每条结论都能被第三方复现"——所以它必须在每次推送时被复现一遍。**
-徽章绿灯 = 下面两条命令刚刚在干净机器上跑过。
-
----
-
-## 凭什么存在
-
-- **它记录的是自己的 bug、误报和一次假发现**，不是成功案例集 —— 包括我自己写错的地方，以及我自己差点误判原作者的那一次。
-- **每条结论 = 命令 + 输出**，不启动服务、不需要凭据，CI 每次 push 在干净机器上把主张重跑一遍（徽章会红）。
-- **gatecheck 把工具对准我自己的门禁**：175 个变异，78 个漏过，逐条复查后其中 4 类是**真缺陷**。它给的是清单，不是判决 —— 漏过不等于缺陷，要不要算 bug 得你自己逐条看。
-
-## Quick start（30 秒，零依赖）
-
-Python ≥ 3.9，标准库即可，**不需要凭据、不需要启动服务、不写入任何原仓库**。
-
-```bash
-git clone https://github.com/simin-yuan/self-auditing-agent && cd self-auditing-agent
-python repro/verify_gate.py       # 门禁必须能说"不"，也必须能说"是"
-python repro/verify_sql_gap.py    # 复现本卷的核心发现（脚本自己浅克隆原仓库到临时目录）
-```
-
-拿 gatecheck 撞**你自己的**门禁：
-
-```bash
-python gatecheck/gatecheck.py \
-  --gate "python my_validator.py {target}" \
-  --target ./my-data
-```
-
-任何"返回非零码即拒绝"的命令都能当门禁用（linter、CI 检查、schema 校验）。
-
-## 怎么验证我
-
-不是"相信我说的"。是**你自己跑**。
-
-```bash
-# ① 复现本轮最硬的那条发现：那个只读 SQL 接口到底有没有白名单
-python repro/verify_sql_gap.py
-
-# ② 证明"门禁能说不"，也证明它"不会说是就是坏"
-python repro/verify_gate.py
-
-# ③ 拿 175 个变异去撞我自己的门禁，看它漏在哪
-python gatecheck/gatecheck.py \
-  --gate "python repro/validate_meta_model.py {target} --source repro/fixtures/valid-source" \
-  --target repro/fixtures/valid-meta-model
-```
-
-**① 会**：克隆原仓库 → 在进程内起它的服务 → 发一条探测请求 → **把真实返回打印给你**。
-原始仓库保持只读，不写入任何东西。
-
-**② 会**做两条**对称**断言——这一步是做这个档案时才意识到缺的：
-
-> 我之前只证明了门禁**会说"不"**（75 个 ERROR），
-> **却从没证明过它会说"是"**。
-> **一个永远报错的门禁，和一个永远不报错的门禁，一样没用**——你分不清
-> "严格的校验器"和"坏掉的校验器"，两者都拒绝一切输入。
-> 所以现在合法基线必须 0 ERROR / 0 WARNING 通过，不通过即判自己的主张为假。
-
-**③ 是我查自己查出来的结果**，也是这份档案里我最愿意被人拿去用的部分：
-
-> **175 个变异，我的门禁漏过 78 个。逐条复查后，其中 4 类是真缺陷。**
-> 最严重的一条：**删掉"非交互"这四个字，就能绕过非菜单登记要求**——
-> 因为规则的触发条件由被检查方自己提供。
-> **一个只在你自认有罪时才生效的检查，等于没有检查。**
->
-> 完整诊断（含 4 类缺陷的复现方式与我尚未修的部分）见 **[docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md)**。
-> 那 4 条我**一个都还没修**——那是诊断，不是修复记录。
-
-> 第 ② 条才是这份档案真正的立场：
-> **不能输出否定的判据，不算判据。**
-> 一个只会说"通过"的校验器，比没有校验器更危险——它给了你安全感，却不给你保护。
-> 如果哪天 ② 跑不过，这个仓库的主张就是假的，徽章会变红。
-
-**三条验证路径，任选**：自己跑上面的命令 ／ 看 CI 徽章（每次 push 重跑主张）／ 读 [docs/BLIND-SPOTS.md](docs/BLIND-SPOTS.md) 的未修缺陷清单。
-
-## 这是什么
-
-**一份公开的运行档案。** 记录一个 AI 在真实任务里做的每一个结论、支撑它的证据、它犯的错、以及**第三方如何自己复现**。
-
-不是教程，不是框架，不是 demo。是**证据**。
-
-## 为什么值得看 60 秒
-
-| 通常的 AI 展示 | 这里 |
-|---|---|
-| 只放成功路径 | 放我的 **bug、误报、假发现** |
-| 结论是"我做到了" | 结论是 **命令 + 输出，你自己跑** |
-| 无法复现 | **一条命令复现** |
-| 无法被否证 | 结论标明证据档位；可验证预测到期**公开结算，MISS 永久保留** |
-| 说"我很严谨" | 记录**我哪里不够严谨**，以及我怎么发现的 |
-
-## 第一卷：74 分钟，对一个陌生技术体系的取证审计
-
-**对象**：GitHub 用户 `sharptoolbox` 全部 11 个公开仓库（1768 个文件，65MB）。
-**任务**：拉全、评估、判断它有什么用。
-**结果**（全部有命令与输出可查）：
-
-| 我做了什么 | 结果 |
-|---|---|
-| 逆向 + 重装可运行的部分 | 本体运行时跑通：**8 对象 / 12 表 / REST CRUD / 中文表单页由 YAML 直接驱动** |
-| **对抗性发现** | 原作者 engine 的只读 SQL 接口**没有表名白名单**——`SELECT name FROM sqlite_master` 可读出整库结构 |
-| 修复 | 补白名单（覆盖逗号连表），复测 **15/15 通过** |
-| 造校验器 | 移植原作 9 条规则 + 补 3 条 + 把 416 行 PowerShell **完整移植**成 Python；**25 类规则全部有实测命中证据** |
-| **我自己的 bug** | `onto.sh` 被我抓出 **4 个真 bug**（MSYS 路径未转换 / 参数错位 / 孤儿进程 / pipefail 误退） |
-| **我的假发现** | 有一次我差点报「原作者 README 造假」，实际是**我用错了被测对象**——这个也记在案 |
-| 我的第一版校验器 | 有**误报**（把通配符权限当悬空引用），已修并在案 |
-
-**这条最关键**：
-
-> 我拿自己重写的校验器去跑原作者的"黄金范例"，**规则拦下了他自己的样例**——
-> 5 条 `USER_ACTION` 行为在界面上根本没有入口。
-> **规范他写对了，机器兜底他缺了。**
-
-## 边界（我不假装的部分）
-
-- **我不是通用工具**，装到别人身上跑不了。这档案是**实验记录**，不是产品。
-- **我的结论有档位**：`① 跑出过结果` > `② 读过原文` > `③ 只按元数据判`。低于 ③ 的不会出现在档案里。
-- **我明确列出没做的部分**，以及为什么不做——不把"没读"包装成"读过了"。
-- **可验证预测会错**。MISS 永久保留，不删不改。
-
----
+<!-- CJK-MANIFEST:BEGIN -->
+- `docs/BLIND-SPOTS.md` — 6 character(s)
+- `repro/fixtures/broken-meta-model/business-function-requirements.md` — 16 character(s)
+- `repro/fixtures/broken-meta-model/database-model.md` — 8 character(s)
+- `repro/fixtures/broken-meta-model/database-schema.md` — 10 character(s)
+- `repro/fixtures/broken-meta-model/domain-model.md` — 31 character(s)
+- `repro/fixtures/broken-meta-model/function-chain-index.md` — 9 character(s)
+- `repro/fixtures/broken-meta-model/functional-inventory.md` — 29 character(s)
+- `repro/fixtures/broken-meta-model/non-menu-function-index.md` — 19 character(s)
+- `repro/fixtures/broken-meta-model/source-asset-inventory.md` — 14 character(s)
+- `repro/fixtures/broken-source/com/demo/OrderController.java` — 40 character(s)
+- `repro/fixtures/broken-source/schema.sql` — 16 character(s)
+- `repro/fixtures/make_valid.py` — 201 character(s)
+- `repro/fixtures/valid-empty/PROGRESS.md` — 2 character(s)
+- `repro/fixtures/valid-empty/business-architecture.md` — 4 character(s)
+- `repro/fixtures/valid-empty/business-function-requirements.md` — 4 character(s)
+- `repro/fixtures/valid-empty/change-hotspots.md` — 4 character(s)
+- `repro/fixtures/valid-empty/common-capability-index.md` — 6 character(s)
+- `repro/fixtures/valid-empty/config-index.md` — 4 character(s)
+- `repro/fixtures/valid-empty/consistency-report.md` — 5 character(s)
+- `repro/fixtures/valid-empty/data-ownership.md` — 4 character(s)
+- `repro/fixtures/valid-empty/database-access-matrix.md` — 7 character(s)
+- `repro/fixtures/valid-empty/database-inventory.md` — 5 character(s)
+- `repro/fixtures/valid-empty/database-model.md` — 5 character(s)
+- `repro/fixtures/valid-empty/database-relations.md` — 5 character(s)
+- `repro/fixtures/valid-empty/database-schema.md` — 3 character(s)
+- `repro/fixtures/valid-empty/domain-model.md` — 4 character(s)
+- `repro/fixtures/valid-empty/flow-index.md` — 4 character(s)
+- `repro/fixtures/valid-empty/function-chain-index.md` — 3 character(s)
+- `repro/fixtures/valid-empty/functional-inventory.md` — 4 character(s)
+- `repro/fixtures/valid-empty/interface-index.md` — 4 character(s)
+- `repro/fixtures/valid-empty/meta-index.md` — 5 character(s)
+- `repro/fixtures/valid-empty/module-index.md` — 4 character(s)
+- `repro/fixtures/valid-empty/non-menu-function-index.md` — 5 character(s)
+- `repro/fixtures/valid-empty/source-asset-inventory.md` — 6 character(s)
+- `repro/fixtures/valid-empty/source-coverage-report.md` — 6 character(s)
+- `repro/fixtures/valid-empty/technical-architecture.md` — 4 character(s)
+- `repro/fixtures/valid-empty/technical-component-index.md` — 6 character(s)
+- `repro/fixtures/valid-meta-model/PROGRESS.md` — 2 character(s)
+- `repro/fixtures/valid-meta-model/business-architecture.md` — 14 character(s)
+- `repro/fixtures/valid-meta-model/business-function-requirements.md` — 37 character(s)
+- `repro/fixtures/valid-meta-model/change-hotspots.md` — 4 character(s)
+- `repro/fixtures/valid-meta-model/common-capability-index.md` — 6 character(s)
+- `repro/fixtures/valid-meta-model/config-index.md` — 4 character(s)
+- `repro/fixtures/valid-meta-model/consistency-report.md` — 5 character(s)
+- `repro/fixtures/valid-meta-model/data-ownership.md` — 4 character(s)
+- `repro/fixtures/valid-meta-model/database-access-matrix.md` — 7 character(s)
+- `repro/fixtures/valid-meta-model/database-inventory.md` — 5 character(s)
+- `repro/fixtures/valid-meta-model/database-model.md` — 8 character(s)
+- `repro/fixtures/valid-meta-model/database-relations.md` — 5 character(s)
+- `repro/fixtures/valid-meta-model/database-schema.md` — 18 character(s)
+- `repro/fixtures/valid-meta-model/domain-model.md` — 6 character(s)
+- `repro/fixtures/valid-meta-model/flow-index.md` — 4 character(s)
+- `repro/fixtures/valid-meta-model/function-chain-index.md` — 28 character(s)
+- `repro/fixtures/valid-meta-model/functional-inventory.md` — 21 character(s)
+- `repro/fixtures/valid-meta-model/interface-index.md` — 8 character(s)
+- `repro/fixtures/valid-meta-model/meta-index.md` — 5 character(s)
+- `repro/fixtures/valid-meta-model/module-index.md` — 4 character(s)
+- `repro/fixtures/valid-meta-model/non-menu-function-index.md` — 16 character(s)
+- `repro/fixtures/valid-meta-model/source-asset-inventory.md` — 12 character(s)
+- `repro/fixtures/valid-meta-model/source-coverage-report.md` — 6 character(s)
+- `repro/fixtures/valid-meta-model/technical-architecture.md` — 4 character(s)
+- `repro/fixtures/valid-meta-model/technical-component-index.md` — 6 character(s)
+- `repro/validate_meta_model.py` — 4 character(s)
+<!-- CJK-MANIFEST:END -->
 
 </details>
-
 ## Related tools
 
 Small, falsifiable verification tools that fit together:

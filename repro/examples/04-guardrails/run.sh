@@ -10,7 +10,7 @@ set -u
 cd "$(dirname "$0")"
 
 PY=${PY:-python}
-T=./_tmp_run            # 注意：不要用 mktemp。MSYS 的 /tmp 是 C:\tmp，原生 python 看不到
+T=./_tmp_run            # note: do not use mktemp. MSYS /tmp is C:\tmp, invisible to native python
 rm -rf "$T"; mkdir -p "$T"
 cp rail.xml validators.py output_valid.txt "$T/"
 
