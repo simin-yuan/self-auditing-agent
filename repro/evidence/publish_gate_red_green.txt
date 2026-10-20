@@ -2,7 +2,7 @@
 verify_publish_gate —— 拒绝不是一个返回值，是一个没被写出去的字节
 ==========================================================================
   [PASS] S1a  没有收据 → 门拒绝（NO_RECEIPT），不是「跳过检查」
-           [2026-09-28T19:20:34+00:00] GATE DENY action=publish.post reason=NO_RECEIPT detail=FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Simon\\AppData\\Local\\Temp\\publish_gate_s71178dn\\no_such_receipt.json'
+           [2026-09-28T19:20:34+00:00] GATE DENY action=publish.post reason=NO_RECEIPT detail=FileNotFoundError: [Errno 2] No such file or directory: '<tmp>\\publish_gate_s71178dn\\no_such_receipt.json'
   [PASS] S1b  被拒时队列文件不存在（动作没有发生）
            queue_exists=False
 --------------------------------------------------------------------------
@@ -31,3 +31,5 @@ verify_publish_gate —— 拒绝不是一个返回值，是一个没被写出�
 结论：9/9 条主张成立。
       先红后绿：过期授权在动作处被拦（队列零字节），新授权通过（队列 1 行）。
 ==========================================================================
+
+[note] Local absolute paths in this capture were replaced with <tmp> before publishing.
