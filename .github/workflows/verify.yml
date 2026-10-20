@@ -37,6 +37,12 @@ jobs:
           python repro/fixtures/make_valid.py
           python repro/verify_gate.py
 
+      - name: ④ 收据的有效期在动作处判、不在签发处判
+        run: python repro/verify_receipts.py
+
+      - name: ⑤ 让收据在一个真实动作点上真的拦下一次（先红后绿）
+        run: python repro/verify_publish_gate.py
+
   gatecheck:
     name: Health-check our own gate
     runs-on: ubuntu-latest
