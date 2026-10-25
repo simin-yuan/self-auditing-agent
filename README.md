@@ -1,4 +1,11 @@
-# gatecheck
+# self-auditing-agent
+
+A public audit archive where every claim ships with the command that produced it, failures included.
+The mutation tool this audit produced now lives on its own as
+[greencheck](https://github.com/simin-yuan/greencheck); the copy under `gatecheck/` stays so the
+numbers below can be reproduced as they were measured.
+
+## gatecheck
 
 **Your gate can silently lose a rule and CI stays green. gatecheck finds the rules nothing is actually testing.**
 
