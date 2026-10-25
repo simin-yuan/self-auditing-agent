@@ -1,6 +1,6 @@
 name: 'gatecheck'
 description: 'Does your quality gate actually reject anything? Mutates a known-good baseline and reports which mutations your gate fails to reject.'
-author: 'Simin (Simon) Yuan'
+author: 'Simin Yuan'
 branding:
   icon: 'shield'
   color: 'purple'

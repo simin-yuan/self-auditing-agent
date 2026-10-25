@@ -5,7 +5,7 @@ type: dataset
 license: MIT
 authors:
   - family-names: Yuan
-    given-names: "Simin (Simon)"
+    given-names: "Simin"
     orcid: "https://orcid.org/0009-0002-6843-3390"
     alias: simin-yuan
 repository-code: "https://github.com/simin-yuan/self-auditing-agent"

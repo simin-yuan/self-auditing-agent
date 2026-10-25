@@ -175,4 +175,4 @@ Small, falsifiable verification tools that fit together:
 
 Code is MIT — see [`LICENSE`](LICENSE). Documentation under `volumes/` and `docs/` is CC BY 4.0 — see [`LICENSE-docs`](LICENSE-docs).
 
-© 2026 Simin (Simon) Yuan — ORCID [0009-0002-6843-3390](https://orcid.org/0009-0002-6843-3390) · [github.com/simin-yuan](https://github.com/simin-yuan).
+© 2026 Simin Yuan — ORCID [0009-0002-6843-3390](https://orcid.org/0009-0002-6843-3390) · [github.com/simin-yuan](https://github.com/simin-yuan).
